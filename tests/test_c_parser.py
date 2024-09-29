@@ -10,7 +10,6 @@ from pycparser import c_parser
 from pycparser.c_ast import *
 from pycparser.c_parser import ParseError
 
-
 # yapf: disable
 _c_parser = c_parser.CParser(
     lex_optimize=False,
@@ -2110,9 +2109,9 @@ class TestCParser_whole_code(TestCParser_base):
         assert_case_node(block[1], '10')
         self.assertEqual(len(block[1].stmts), 0)
         assert_case_node(block[2], '20')
-        self.assertEqual(len(block[1].stmts), 1)
+        self.assertEqual(len(block[2].stmts), 1)
         assert_case_node(block[3], '30')
-        self.assertEqual(len(block[1].stmts), 0)
+        self.assertEqual(len(block[3].stmts), 0)
         assert_case_node(block[4], '40')
         self.assertEqual(len(block[4].stmts), 1)
 
@@ -2497,7 +2496,7 @@ class TestCParser_typenames(TestCParser_base):
 
 if __name__ == '__main__':
     #~ suite = unittest.TestLoader().loadTestsFromNames(
-        #~ ['test_c_parser.TestCParser_fundamentals.test_typedef'])
+    #~ ['test_c_parser.TestCParser_fundamentals.test_typedef'])
 
     #~ unittest.TextTestRunner(verbosity=2).run(suite)
     unittest.main()
