@@ -6,6 +6,7 @@
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
 #------------------------------------------------------------------------------
+# yapf: disable
 import re
 
 from .ply import lex
@@ -106,6 +107,7 @@ class CLexer(object):
         'RESTRICT', 'RETURN', 'SHORT', 'SIGNED', 'SIZEOF', 'STATIC', 'STRUCT',
         'SWITCH', 'TYPEDEF', 'UNION', 'UNSIGNED', 'VOID',
         'VOLATILE', 'WHILE', '__INT128',
+        'CGR_FALLTHRU',
     )
 
     keywords_new = (
