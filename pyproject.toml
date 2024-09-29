@@ -1,0 +1,41 @@
+[tool.poetry]
+name = 'pycparser'
+version = '2.22'
+description = 'C to AST parser, written in Python'
+authors = ['Eli Bendersky <eliben@gmail.com>']
+license = 'BSD-3-Clause'
+readme = "README.rst"
+maintainers = ['Eli Bendersky <eliben@gmail.com>']
+classifiers  =  [
+    'Development Status :: 5 - Production/Stable',
+    'License :: OSI Approved :: BSD License',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
+]
+
+[tool.poetry.urls]
+"Homepage" = 'https://github.com/eliben/pycparser'
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poe.poetry_hooks]
+pre_build = "build-tables"
+pre_install = "build-tables"
+
+[tool.poe.tasks.build-tables]
+cmd  = "env -C ./pycparser/ python3 -B _build_tables.py"
+help = "Build some tables I guess"
+
+# packages = ['pycparser', 'pycparser.ply']
+# package_data = {'pycparser': ['*.cfg']}
+# cmdclass = {'install': install, 'sdist': sdist}
