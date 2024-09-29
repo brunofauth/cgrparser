@@ -10,11 +10,14 @@ from pycparser import c_parser
 from pycparser.c_ast import *
 from pycparser.c_parser import ParseError
 
+
+# yapf: disable
 _c_parser = c_parser.CParser(
-                lex_optimize=False,
-                yacc_debug=True,
-                yacc_optimize=False,
-                yacctab='yacctab')
+    lex_optimize=False,
+    yacc_debug=True,
+    yacc_optimize=False,
+    yacctab='yacctab',
+)
 
 
 def expand_decl(decl):
@@ -2059,6 +2062,7 @@ class TestCParser_whole_code(TestCParser_base):
                     p = k + 1;
                     return 10;
                 case 20:
+                    cgr_fallthru;
                 case 30:
                     return 20;
                 default:
@@ -2075,7 +2079,7 @@ class TestCParser_whole_code(TestCParser_base):
         assert_case_node(block[0], '10')
         self.assertEqual(len(block[0].stmts), 3)
         assert_case_node(block[1], '20')
-        self.assertEqual(len(block[1].stmts), 0)
+        self.assertEqual(len(block[1].stmts), 1)
         assert_case_node(block[2], '30')
         self.assertEqual(len(block[2].stmts), 1)
         assert_default_node(block[3])
@@ -2088,6 +2092,7 @@ class TestCParser_whole_code(TestCParser_base):
                     return 10;
                 case 10:
                 case 20:
+                    cgr_fallthru;
                 case 30:
                 case 40:
                     break;
@@ -2105,7 +2110,7 @@ class TestCParser_whole_code(TestCParser_base):
         assert_case_node(block[1], '10')
         self.assertEqual(len(block[1].stmts), 0)
         assert_case_node(block[2], '20')
-        self.assertEqual(len(block[1].stmts), 0)
+        self.assertEqual(len(block[1].stmts), 1)
         assert_case_node(block[3], '30')
         self.assertEqual(len(block[1].stmts), 0)
         assert_case_node(block[4], '40')

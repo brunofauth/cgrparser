@@ -6,6 +6,7 @@ sys.path.insert(0, '..')
 from pycparser.c_lexer import CLexer
 
 
+# yapf: disable
 def token_list(clex):
     return list(iter(clex.token, None))
 
@@ -266,7 +267,10 @@ class TestCLexerNoErrors(unittest.TestCase):
         self.assertTokensTypes(
             """ switch (typ)
                 {
-                    case TYPE_ID:
+                    case TYPE_ID_1:
+                        m = 5;
+                        cgr_fallthru;
+                    case TYPE_ID_2:
                         m = 5;
                         break;
                     default:
@@ -274,6 +278,9 @@ class TestCLexerNoErrors(unittest.TestCase):
                 }""",
             ['SWITCH', 'LPAREN', 'ID', 'RPAREN',
                 'LBRACE',
+                    'CASE', 'ID', 'COLON',
+                        'ID', 'EQUALS', 'INT_CONST_DEC', 'SEMI',
+                        'CGR_FALLTHRU', 'SEMI',
                     'CASE', 'ID', 'COLON',
                         'ID', 'EQUALS', 'INT_CONST_DEC', 'SEMI',
                         'BREAK', 'SEMI',
