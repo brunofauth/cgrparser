@@ -33,7 +33,7 @@ pre_build = "build-tables"
 pre_install = "build-tables"
 
 [tool.poe.tasks.build-tables]
-cmd  = "env -C ./pycparser/ python3 -B _build_tables.py"
+cmd  = "env -C ./src/pycparser/ python3 -B _build_tables.py"
 help = "Build some tables I guess"
 
 # packages = ['pycparser', 'pycparser.ply']
