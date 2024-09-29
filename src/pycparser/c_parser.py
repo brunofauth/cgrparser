@@ -675,21 +675,28 @@ class CParser(PLYParser):
         else:
             p[0] = p[1]
 
-    def p_pragmacomp_or_statement_case_1(self, p):
-        """ pragmacomp_or_statement_case     : pppragma_directive_list statement fallthru_statement
-                                             | pppragma_directive_list fallthru_statement
-        """
-        if len(p) == 4:
-            p[0] = c_ast.Compound(block_items=p[1] + [p[2], p[3]], coord=self._token_coord(p, 1))
-        else:
-            p[0] = c_ast.Compound(block_items=p[1] + [p[2]], coord=self._token_coord(p, 1))
+    def p_fallthru_statement(self, p):
+        """ fallthru_statement  : CGR_FALLTHRU SEMI """
+        p[0] = c_ast.CgrFallthrough(self._token_coord(p, 1))
 
-    def p_pragmacomp_or_statement_case_2(self, p):
-        """ pragmacomp_or_statement_case     : statement fallthru_statement
-                                             | fallthru_statement
+    def p_statement_case(self, p):
+        """ statement_case : statement fallthru_statement
+                           | fallthru_statement
+                           | statement
         """
         if len(p) == 3:
-            p[0] = p[1] + [p[2]]
+            p[0] = p[1] + [p2[2]]
+        elif isinstance(p[1], c_ast.CgrFallthrough):
+            p[0] = [p[1]]
+        else:
+            p[0] = p[1]
+
+    def p_pragmacomp_or_statement_case(self, p):
+        """ pragmacomp_or_statement_case     : pppragma_directive_list statement_case
+                                             | statement_case
+        """
+        if len(p) == 3:
+            p[0] = c_ast.Compound(block_items=p[1] + [p[2]], coord=self._token_coord(p, 1))
         else:
             p[0] = p[1]
 
@@ -1517,7 +1524,8 @@ class CParser(PLYParser):
 
     def p_labeled_statement_2(self, p):
         """ labeled_statement : CASE constant_expression COLON pragmacomp_or_statement_case
-                              | CASE constant_expression COLON pragmacomp_or_statement """
+                              | CASE constant_expression COLON pragmacomp_or_statement
+        """
         p[0] = c_ast.Case(p[2], [p[4]], self._token_coord(p, 1))
 
     def p_labeled_statement_3(self, p):
@@ -1575,11 +1583,6 @@ class CParser(PLYParser):
                             | RETURN SEMI
         """
         p[0] = c_ast.Return(p[2] if len(p) == 4 else None, self._token_coord(p, 1))
-
-    # This one may only appear inside 'case' labels
-    def p_fallthru_statement(self, p):
-        """ fallthru_statement  : CGR_FALLTHRU SEMI """
-        p[0] = c_ast.CgrFallthrough(self._token_coord(p, 1))
 
     def p_expression_statement(self, p):
         """ expression_statement : expression_opt SEMI """
