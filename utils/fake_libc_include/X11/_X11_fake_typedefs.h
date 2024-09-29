@@ -35,4 +35,9 @@ typedef struct _XIC *XIC;
 typedef struct _XIM *XIM;
 typedef struct _XImage XImage;
 
+typedef struct XButtonEvent XButtonEvent;
+typedef XButtonEvent XButtonPressedEvent;
+typedef XButtonEvent XButtonReleasedEvent;
+typedef struct XConfigureEvent XConfigureEvent;
+
 #endif
