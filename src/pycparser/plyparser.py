@@ -10,6 +10,7 @@
 
 import warnings
 
+
 class Coord(object):
     """ Coordinates of a syntactic element. Consists of:
             - File name
@@ -17,6 +18,7 @@ class Coord(object):
             - (optional) column number, for the Lexer
     """
     __slots__ = ('file', 'line', 'column', '__weakref__')
+
     def __init__(self, file, line, column=None):
         self.file = file
         self.line = line
@@ -24,14 +26,28 @@ class Coord(object):
 
     def __str__(self):
         str = "%s:%s" % (self.file, self.line)
-        if self.column: str += ":%s" % self.column
+        if self.column:
+            str += ":%s" % self.column
         return str
 
 
-class ParseError(Exception): pass
+class ParseError(Exception):
+    __slots__ = ["where", "message", "note"]
+
+    def __init__(self, where: Coord, message: str, note: str | None = None) -> None:
+        self.where = where
+        self.message = message
+        self.note = note
+
+    def __str__(self) -> str:
+        if self.note is None:
+            return f"{self.where}: {self.message}"
+        else:
+            return f"{self.where}: {self.message}\n\n===> Note: {self.note}"
 
 
 class PLYParser(object):
+
     def _create_opt_rule(self, rulename):
         """ Given a rule name, creates an optional ply.yacc rule
             for it. The name of the optional rule is
@@ -46,11 +62,8 @@ class PLYParser(object):
         optrule.__name__ = 'p_%s' % optname
         setattr(self.__class__, optrule.__name__, optrule)
 
-    def _coord(self, lineno, column=None):
-        return Coord(
-                file=self.clex.filename,
-                line=lineno,
-                column=column)
+    def _coord(self, lineno, column=None) -> Coord:
+        return Coord(file=self.clex.filename, line=lineno, column=column)
 
     def _token_coord(self, p, token_idx):
         """ Returns the coordinates for the YaccProduction object 'p' indexed
@@ -63,8 +76,8 @@ class PLYParser(object):
         column = (p.lexpos(token_idx) - (last_cr))
         return self._coord(p.lineno(token_idx), column)
 
-    def _parse_error(self, msg, coord):
-        raise ParseError("%s: %s" % (coord, msg))
+    def _parse_error(self, msg: str, coord: Coord, note: str | None = None):
+        raise ParseError(where=coord, message=msg, note=note)
 
 
 def parameterized(*params):
@@ -77,9 +90,11 @@ def parameterized(*params):
     ``@parameterized(('id', 'ID'))`` produces ``p_id_rule()`` with the docstring
     'id_rule  : ID'. Using multiple tuples produces multiple rules.
     """
+
     def decorate(rule_func):
         rule_func._params = params
         return rule_func
+
     return decorate
 
 
@@ -105,10 +120,9 @@ def template(cls):
                 if method.__doc__ is not None:
                     _create_param_rules(cls, method)
                 elif not issued_nodoc_warning:
-                    warnings.warn(
-                        'parsing methods must have __doc__ for pycparser to work properly',
-                        RuntimeWarning,
-                        stacklevel=2)
+                    warnings.warn('parsing methods must have __doc__ for pycparser to work properly',
+                                    RuntimeWarning,
+                                    stacklevel=2)
                     issued_nodoc_warning = True
     return cls
 

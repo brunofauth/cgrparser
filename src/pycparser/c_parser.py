@@ -16,6 +16,16 @@ from .plyparser import PLYParser, ParseError, parameterized, template
 from .ast_transforms import fix_switch_cases, fix_atomic_specifiers
 
 
+_PARSE_ERROR_HELP_NOTES = {
+    "cgr_fallthru": "this keyword may only appear inside 'case' labels. Perhaps you misplaced it?",
+    "cgr_nullable": "this keyword may only apper right after the star '*' of a pointer declaration. Perhaps you misplaced it?",
+    "cgr_not_null": "this keyword may only apper right after the star '*' of a pointer declaration. Perhaps you misplaced it?",
+    "cgr_in": "this keyword may only apper inside a function signature, right before the star '*' of a pointer declaration. Perhaps you misplaced it?",
+    "cgr_out": "this keyword may only apper inside a function signature, right before the star '*' of a pointer declaration. Perhaps you misplaced it?",
+    "cgr_inout": "this keyword may only apper inside a function signature, right before the star '*' of a pointer declaration. Perhaps you misplaced it?",
+}
+
+
 @template
 class CParser(PLYParser):
 
@@ -1980,6 +1990,11 @@ class CParser(PLYParser):
             self._parse_error(
                 'before: %s' % p.value,
                 self._coord(lineno=p.lineno, column=self.clex.find_tok_column(p)),
+                note=_PARSE_ERROR_HELP_NOTES.get(p.value),
             )
         else:
-            self._parse_error('At end of input', self.clex.filename)
+            self._parse_error(
+                'Reached end-of-file, but was expecting more tokens...',
+                self.clex.filename,
+                note='Perhaps your code has unbalanced braces/brackets/parentheses?'
+            )
