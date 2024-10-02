@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+# vim: foldlevel=0 foldclose
 
+from __future__ import annotations
+
+import functools
 import os, sys
 import io
 import unittest
@@ -17,6 +21,22 @@ _c_parser = c_parser.CParser(
     yacc_optimize=False,
     yacctab='yacctab',
 )
+
+
+@functools.cache
+def _dummy[**P, T: type[Node]](node_type: type[Node]) -> Callable[P, T]:
+    """Returns an alternative constructor for a Node type, in which all
+    parameters default to '...', to produce 'dummy' types, useful when
+    comparing AST structures."""
+
+    default_args = {slot: ... for slot in node_type.__slots__}
+    del default_args["coord"]
+    del default_args["__weakref__"]
+
+    @functools.wraps(node_type)
+    def _ctor(**kwargs) -> T:
+        return node_type(**{**default_args, **kwargs})
+    return _ctor
 
 
 def expand_decl(decl):
@@ -114,7 +134,7 @@ def expand_init(init):
 
 
 class TestCParser_base(unittest.TestCase):
-    def parse(self, txt, filename=''):
+    def parse(self, txt, filename='') -> FileAST:
         return self.cparser.parse(txt, filename)
 
     def setUp(self):
@@ -128,12 +148,9 @@ class TestCParser_base(unittest.TestCase):
             self.assertEqual(node.coord.file, file)
 
 
-
 class TestCParser_fundamentals(TestCParser_base):
     def get_decl(self, txt, index=0):
-        """ Given a source and an index returns the expanded
-            declaration at that index.
-
+        """ Given a source and an index returns the expanded declaration at that index.
             FileAST holds a list of 'external declarations'.
             index is the offset of the desired declaration in that
             list.
@@ -334,7 +351,6 @@ class TestCParser_fundamentals(TestCParser_base):
     def test_int128(self):
         self.assertEqual(self.get_decl('__int128 a;'),
             ['Decl', 'a', ['TypeDecl', ['IdentifierType', ['__int128']]]])
-
 
     def test_nested_decls(self): # the fun begins
         self.assertEqual(self.get_decl('char** ar2D;'),
@@ -547,6 +563,96 @@ class TestCParser_fundamentals(TestCParser_base):
                         ['ArrayDecl', '5', [],
                             ['TypeDecl', ['IdentifierType', ['int']]]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
+
+    def test_nullness_qualifiers(self):
+        def assert_decl(code: str, decl: Decl) -> None:
+            self.assertEqual(self.parse(code).ext[0], decl)
+        def assert_func_decl(code: str, func_decl: FuncDecl) -> None:
+            self.assertEqual(self.parse(code).ext[0].type, func_decl)
+
+        assert_decl(
+            "static char * const p;",
+            _dummy(Decl)(storage=["static"], type=_dummy(PtrDecl)(quals=["const"])),
+        )
+        assert_decl(
+            "static char * cgr_nullable p;",
+            _dummy(Decl)(storage=["static"], type=_dummy(PtrDecl)(quals=["cgr_nullable"])),
+        )
+        assert_decl(
+            "static char * cgr_nullable const p;",
+            _dummy(Decl)(storage=["static"], type=_dummy(PtrDecl)(quals=["const", "cgr_nullable"])),
+        )
+        self.assertRaises(ParseError, lambda: self.parse("static char * cgr_not_null cgr_nullable p;"))
+        self.assertRaises(ParseError, lambda: self.parse("static char * const cgr_nullable p;"))
+        self.assertRaises(ParseError, lambda: self.parse("static char * const cgr_not_null p;"))
+
+        assert_func_decl(
+            "void my_fun(int * arg1);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(quals=[]),
+            )]))
+        )
+        assert_func_decl(
+            "void my_fun(int * cgr_not_null const arg1);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(quals=["const", "cgr_not_null"]),
+            )]))
+        )
+        assert_func_decl(
+            "void my_fun(int * cgr_nullable arg1);", 
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(quals=["cgr_nullable"]),
+            )]))
+        )
+        assert_func_decl(
+            "void my_fun(int * cgr_nullable);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Typename)(
+                type=_dummy(PtrDecl)(quals=['cgr_nullable'])
+            )]))
+        )
+
+        bad_decl = "void my_fun(int * cgr_nullable cgr_not_null arg1);"
+        self.assertRaises(ParseError, lambda: self.parse(bad_decl))
+        bad_decl = "void my_fun(int * const cgr_nullable arg1);"
+        self.assertRaises(ParseError, lambda: self.parse(bad_decl))
+
+    def test_nullness_qualifiers(self):
+        def assert_func_decl(code: str, func_decl: FuncDecl) -> None:
+            self.assertEqual(self.parse(code).ext[0].type, func_decl)
+        def assert_bad_grammar(code: str) -> None:
+            self.assertRaises(ParseError, lambda: self.parse(code))
+
+        assert_func_decl(
+            "void my_fun(int cgr_in * arg1);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(quals=["cgr_in"]),
+            )]))
+        )
+        assert_func_decl(
+            "void my_fun(int cgr_out * cgr_nullable arg1);", 
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(quals=["cgr_nullable", "cgr_out"]),
+            )]))
+        )
+        assert_func_decl(
+            "void my_fun(int cgr_inout * cgr_not_null const);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Typename)(
+                type=_dummy(PtrDecl)(quals=['const', 'cgr_not_null', 'cgr_inout'])
+            )]))
+        )
+        self.assertEqual(
+            self.parse('void f(int cgr_in *p) { printf("%d", *p); }').ext[0],
+            _dummy(FuncDef)(decl=_dummy(Decl)(type=_dummy(FuncDecl)(args=ParamList(params=[
+                _dummy(Decl)(type=_dummy(PtrDecl)(quals=["cgr_in"]))
+            ]))))
+        )
+
+        assert_bad_grammar("void my_fun(cgr_in int * cgr_nullable arg1);")
+        assert_bad_grammar("void my_fun(int * cgr_in cgr_nullable arg1);")
+        assert_bad_grammar("void my_fun(int * cgr_nullable cgr_in arg1);")
+        assert_bad_grammar("void my_fun(int * cgr_nullable arg1 cgr_in);")
+        assert_bad_grammar("static int cgr_in *some_ptr;")
+        assert_bad_grammar("int cgr_out *my_func(void);")
 
     def test_qualifiers_storage_specifiers(self):
         def assert_qs(txt, index, quals, storage):
@@ -1931,7 +2037,6 @@ class TestCParser_whole_code(TestCParser_base):
             ['5', '6', '1', '1', '"Hello, world\\n"', '0'])
         self.assert_num_ID_refs(ps1, 'i', 1)
         self.assert_num_ID_refs(ps1, 'j', 2)
-
 
     def test_statements(self):
         s1 = r'''

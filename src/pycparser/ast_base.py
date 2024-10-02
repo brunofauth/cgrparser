@@ -36,7 +36,11 @@ class Node(object):
         for slot in self.__slots__[:-2]:
             if slot in self._eq_ignore:
                 continue
-            if getattr(self, slot) != getattr(other, slot):
+            mine = getattr(self, slot)
+            others = getattr(other, slot)
+            if mine == ... or others == ...:
+                continue
+            if mine != others:
                 return False
         return True
 

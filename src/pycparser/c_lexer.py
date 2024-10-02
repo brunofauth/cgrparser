@@ -108,6 +108,8 @@ class CLexer(object):
         'SWITCH', 'TYPEDEF', 'UNION', 'UNSIGNED', 'VOID',
         'VOLATILE', 'WHILE', '__INT128',
         'CGR_FALLTHRU',
+        'CGR_NULLABLE', 'CGR_NOT_NULL',
+        'CGR_IN', 'CGR_OUT', 'CGR_INOUT',
     )
 
     keywords_new = (

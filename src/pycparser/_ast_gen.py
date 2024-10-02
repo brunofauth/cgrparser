@@ -93,10 +93,10 @@ class NodeCfg(object):
 
         if len(self.all_entries) != 0:
             slots = ", ".join(repr(slot) for slot in chain(self.all_entries, ["coord", "__weakref__"]))
-            arglist = f'(self, {", ".join(self.all_entries)}, coord=None)'
+            arglist = f'(self, {", ".join(self.all_entries)}, coord: Coord | None = None)'
         else:
             slots = "'coord', '__weakref__'"
-            arglist = '(self, coord=None)'
+            arglist = '(self, coord: Coord | None = None)'
 
         src_lines.append("    __slots__ = (%s)" % slots)
         src_lines.append("    def __init__%s:" % arglist)
@@ -174,10 +174,20 @@ r'''#-----------------------------------------------------------------
 '''
 
 _PROLOGUE_CODE = r'''
+from __future__ import annotations
+
 try: 
     from .ast_base import Node, NodeVisitor
 except ImportError:
     from ast_base import Node, NodeVisitor
+
+import typing
+
+if typing.TYPE_CHECKING:
+    try: 
+        from .plyparser import Coord
+    except ImportError:
+        from plyparser import Coord
 
 
 '''

@@ -87,6 +87,7 @@ class CParser(PLYParser):
         self.tokens = self.clex.tokens
 
         rules_with_opt = [
+            'arg_abstract_declarator',
             'abstract_declarator',
             'assignment_expression',
             'declaration_list',
@@ -900,6 +901,7 @@ class CParser(PLYParser):
         typ.quals.append('_Atomic')
         p[0] = typ
 
+    # NOTE: does this mean that this parser allows for 'restrict' on nonpointers?
     def p_type_qualifier(self, p):
         """ type_qualifier  : CONST
                             | RESTRICT
@@ -1150,6 +1152,30 @@ class CParser(PLYParser):
         """
         p[0] = self._type_modify_decl(p[2], p[1])
 
+    def p_pointer_intent(self, p):
+        """ pointer_intent : CGR_IN
+                           | CGR_OUT
+                           | CGR_INOUT
+        """
+        p[0] = p[1]
+
+    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    def p_xxx_arg_declarator_1(self, p):
+        """ xxx_arg_declarator  : direct_xxx_declarator
+        """
+        p[0] = p[1]
+
+    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    def p_xxx_arg_declarator_2(self, p):
+        """ xxx_arg_declarator  : pointer_intent pointer direct_xxx_declarator
+                                | pointer direct_xxx_declarator
+        """
+        if len(p) == 4:
+            p[2].quals.append(p[1])
+            p[0] = self._type_modify_decl(p[3], p[2])
+        else:
+            p[0] = self._type_modify_decl(p[2], p[1])
+
     @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
     def p_direct_xxx_declarator_1(self, p):
         """ direct_xxx_declarator   : yyy
@@ -1229,7 +1255,30 @@ class CParser(PLYParser):
 
         p[0] = self._type_modify_decl(decl=p[1], modifier=func)
 
-    def p_pointer(self, p):
+    def p_nullness_qualifier(self, p):
+        """ nullness_qualifier : CGR_NULLABLE
+                               | CGR_NOT_NULL
+        """
+        p[0] = p[1]
+
+    def p_pointer_1(self, p):
+        """ pointer : TIMES nullness_qualifier type_qualifier_list_opt
+                    | TIMES nullness_qualifier type_qualifier_list_opt pointer
+        """
+        coord = self._token_coord(p, 1)
+        nested_type = c_ast.PtrDecl(quals=(p[3] or [])+[p[2]], type=None, coord=coord)
+        if len(p) > 4:
+            tail_type = p[4]
+            while tail_type.type is not None:
+                tail_type = tail_type.type
+            tail_type.type = nested_type
+            p[0] = p[4]
+        else:
+            p[0] = nested_type
+
+    # This parser takes no type information. Examples:
+    # * restrict | **volatile | * const * const | *
+    def p_pointer_2(self, p):
         """ pointer : TIMES type_qualifier_list_opt
                     | TIMES type_qualifier_list_opt pointer
         """
@@ -1249,6 +1298,7 @@ class CParser(PLYParser):
         #
         # So when we construct PtrDecl nestings, the leftmost pointer goes in
         # as the most nested type.
+
         nested_type = c_ast.PtrDecl(quals=p[2] or [], type=None, coord=coord)
         if len(p) > 3:
             tail_type = p[3]
@@ -1295,8 +1345,8 @@ class CParser(PLYParser):
     # always treat it as an abstract declarator. Therefore, we only accept
     # `id_declarator`s and `typeid_noparen_declarator`s.
     def p_parameter_declaration_1(self, p):
-        """ parameter_declaration   : declaration_specifiers id_declarator
-                                    | declaration_specifiers typeid_noparen_declarator
+        """ parameter_declaration   : declaration_specifiers id_arg_declarator
+                                    | declaration_specifiers typeid_noparen_arg_declarator
         """
         spec = p[1]
         if not spec['type']:
@@ -1304,7 +1354,7 @@ class CParser(PLYParser):
         p[0] = self._build_declarations(spec=spec, decls=[dict(decl=p[2])])[0]
 
     def p_parameter_declaration_2(self, p):
-        """ parameter_declaration   : declaration_specifiers abstract_declarator_opt
+        """ parameter_declaration   : declaration_specifiers arg_abstract_declarator_opt
         """
         spec = p[1]
         if not spec['type']:
@@ -1415,6 +1465,31 @@ class CParser(PLYParser):
 
     def p_abstract_declarator_3(self, p):
         """ abstract_declarator     : direct_abstract_declarator
+        """
+        p[0] = p[1]
+
+    def p_arg_abstract_declarator_1(self, p):
+        """ arg_abstract_declarator     : pointer
+                                        | pointer_intent pointer
+        """
+        dummytype = c_ast.TypeDecl(None, None, None, None)
+        if len(p) == 3:
+            p[2].quals.append(p[1])
+            p[0] = self._type_modify_decl(decl=dummytype, modifier=p[2])
+        else:
+            p[0] = self._type_modify_decl(decl=dummytype, modifier=p[1])
+
+    def p_arg_abstract_declarator_2(self, p):
+        """ arg_abstract_declarator     : pointer_intent pointer direct_abstract_declarator
+        """
+        if len(p) == 4:
+            p[2].quals.append(p[1])
+            p[0] = self._type_modify_decl(p[3], p[2])
+        else:
+            p[0] = self._type_modify_decl(p[2], p[1])
+
+    def p_arg_abstract_declarator_3(self, p):
+        """ arg_abstract_declarator     : direct_abstract_declarator
         """
         p[0] = p[1]
 
