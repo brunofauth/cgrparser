@@ -147,6 +147,9 @@ class TestCParser_base(unittest.TestCase):
         if file:
             self.assertEqual(node.coord.file, file)
 
+    def assert_bad_grammar(self, code: str) -> None:
+        self.assertRaises(ParseError, self.parse, code)
+
 
 class TestCParser_fundamentals(TestCParser_base):
     def get_decl(self, txt, index=0):
@@ -582,9 +585,9 @@ class TestCParser_fundamentals(TestCParser_base):
             "static char * cgr_nullable const p;",
             _dummy(Decl)(storage=["static"], type=_dummy(PtrDecl)(quals=["const", "cgr_nullable"])),
         )
-        self.assertRaises(ParseError, lambda: self.parse("static char * cgr_not_null cgr_nullable p;"))
-        self.assertRaises(ParseError, lambda: self.parse("static char * const cgr_nullable p;"))
-        self.assertRaises(ParseError, lambda: self.parse("static char * const cgr_not_null p;"))
+        self.assert_bad_grammar("static char * cgr_not_null cgr_nullable p;")
+        self.assert_bad_grammar("static char * const cgr_nullable p;")
+        self.assert_bad_grammar("static char * const cgr_not_null p;")
 
         assert_func_decl(
             "void my_fun(int * arg1);",
@@ -619,8 +622,6 @@ class TestCParser_fundamentals(TestCParser_base):
     def test_nullness_qualifiers(self):
         def assert_func_decl(code: str, func_decl: FuncDecl) -> None:
             self.assertEqual(self.parse(code).ext[0].type, func_decl)
-        def assert_bad_grammar(code: str) -> None:
-            self.assertRaises(ParseError, lambda: self.parse(code))
 
         assert_func_decl(
             "void my_fun(int cgr_in * arg1);",
@@ -647,12 +648,12 @@ class TestCParser_fundamentals(TestCParser_base):
             ]))))
         )
 
-        assert_bad_grammar("void my_fun(cgr_in int * cgr_nullable arg1);")
-        assert_bad_grammar("void my_fun(int * cgr_in cgr_nullable arg1);")
-        assert_bad_grammar("void my_fun(int * cgr_nullable cgr_in arg1);")
-        assert_bad_grammar("void my_fun(int * cgr_nullable arg1 cgr_in);")
-        assert_bad_grammar("static int cgr_in *some_ptr;")
-        assert_bad_grammar("int cgr_out *my_func(void);")
+        self.assert_bad_grammar("void my_fun(cgr_in int * cgr_nullable arg1);")
+        self.assert_bad_grammar("void my_fun(int * cgr_in cgr_nullable arg1);")
+        self.assert_bad_grammar("void my_fun(int * cgr_nullable cgr_in arg1);")
+        self.assert_bad_grammar("void my_fun(int * cgr_nullable arg1 cgr_in);")
+        self.assert_bad_grammar("static int cgr_in *some_ptr;")
+        self.assert_bad_grammar("int cgr_out *my_func(void);")
 
     def test_qualifiers_storage_specifiers(self):
         def assert_qs(txt, index, quals, storage):
