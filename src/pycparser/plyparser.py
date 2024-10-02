@@ -43,7 +43,7 @@ class ParseError(Exception):
         if self.note is None:
             return f"{self.where}: {self.message}"
         else:
-            return f"{self.where}: {self.message}\n\n===> Note: {self.note}"
+            return f"{self.where}: {self.message}\n==> Note: {self.note}"
 
 
 class PLYParser(object):

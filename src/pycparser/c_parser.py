@@ -1150,13 +1150,15 @@ class CParser(PLYParser):
         """
         p[0] = p[1]
 
-    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'))
+    # @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
     def p_xxx_declarator_1(self, p):
         """ xxx_declarator  : direct_xxx_declarator
         """
         p[0] = p[1]
 
-    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'))
+    # @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
     def p_xxx_declarator_2(self, p):
         """ xxx_declarator  : pointer direct_xxx_declarator
         """
@@ -1169,13 +1171,15 @@ class CParser(PLYParser):
         """
         p[0] = p[1]
 
-    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    @parameterized(('id', 'ID'), ('typeid_noparen', 'TYPEID'))
+    # @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
     def p_xxx_arg_declarator_1(self, p):
         """ xxx_arg_declarator  : direct_xxx_declarator
         """
         p[0] = p[1]
 
-    @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
+    @parameterized(('id', 'ID'), ('typeid_noparen', 'TYPEID'))
+    # @parameterized(('id', 'ID'), ('typeid', 'TYPEID'), ('typeid_noparen', 'TYPEID'))
     def p_xxx_arg_declarator_2(self, p):
         """ xxx_arg_declarator  : pointer_intent pointer direct_xxx_declarator
                                 | pointer direct_xxx_declarator
@@ -1988,13 +1992,13 @@ class CParser(PLYParser):
         #
         if p:
             self._parse_error(
-                'before: %s' % p.value,
+                f'expected other tokens before: {p.value!r}',
                 self._coord(lineno=p.lineno, column=self.clex.find_tok_column(p)),
                 note=_PARSE_ERROR_HELP_NOTES.get(p.value),
             )
         else:
             self._parse_error(
-                'Reached end-of-file, but was expecting more tokens...',
+                'expected other tokens before reaching end-of-file...',
                 self.clex.filename,
                 note='Perhaps your code has unbalanced braces/brackets/parentheses?'
             )
