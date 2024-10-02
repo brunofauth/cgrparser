@@ -1481,6 +1481,7 @@ class CParser(PLYParser):
 
     def p_arg_abstract_declarator_2(self, p):
         """ arg_abstract_declarator     : pointer_intent pointer direct_abstract_declarator
+                                        | pointer direct_abstract_declarator
         """
         if len(p) == 4:
             p[2].quals.append(p[1])

@@ -624,6 +624,20 @@ class TestCParser_fundamentals(TestCParser_base):
             self.assertEqual(self.parse(code).ext[0].type, func_decl)
 
         assert_func_decl(
+            "void my_fun(int * arg1);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(quals=[]),
+            )]))
+        )
+
+        assert_func_decl(
+            "void my_fun(int *);",
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Typename)(
+                type=_dummy(PtrDecl)(quals=[]),
+            )]))
+        )
+
+        assert_func_decl(
             "void my_fun(int cgr_in * arg1);",
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
                 type=_dummy(PtrDecl)(quals=["cgr_in"]),
