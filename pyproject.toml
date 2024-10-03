@@ -40,6 +40,13 @@ pre_install = "build-tables"
 cmd  = "env -C ./src/pycparser/ python3 -B _build_tables.py"
 help = "Build some tables I guess"
 
+[tool.mypy]
+exclude = [
+    'yacctab\.py$',
+    'lextab\.py$',
+    '^src/pycparser/ply',
+]
+
 # packages = ['pycparser', 'pycparser.ply']
 # package_data = {'pycparser': ['*.cfg']}
 # cmdclass = {'install': install, 'sdist': sdist}
