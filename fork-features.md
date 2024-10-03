@@ -8,3 +8,8 @@
 - `cgr_in`, `cgr_out` and `cgr_inout` right before pointer declarations inside 
   function signatures, and only inside function signatures (should they be 
   declarations or definitions). 
+
+
+# TODO
+
+- swap all the `quals` `list`s for `IntFlag`s
