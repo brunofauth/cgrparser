@@ -30,9 +30,10 @@ class Node(object):
         finally:
             cls._eq_ignore = old_value
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         if type(self) != type(other):
             return False
+        slot: str
         for slot in self.__slots__[:-2]:
             if slot in self._eq_ignore:
                 continue

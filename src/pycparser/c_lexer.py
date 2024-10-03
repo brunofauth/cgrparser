@@ -77,7 +77,7 @@ class CLexer(object):
         self.last_token = self.lexer.token()
         return self.last_token
 
-    def find_tok_column(self, token):
+    def find_tok_column(self, token) -> int:
         """ Find the column of the token in its line.
         """
         last_cr = self.lexer.lexdata.rfind('\n', 0, token.lexpos)
@@ -117,9 +117,9 @@ class CLexer(object):
         '_NORETURN', '_THREAD_LOCAL', '_STATIC_ASSERT',
         '_ATOMIC', '_ALIGNOF', '_ALIGNAS',
         '_PRAGMA',
-        )
+    )
 
-    keyword_map = {}
+    keyword_map: dict[str, str] = {}
 
     for keyword in keywords:
         keyword_map[keyword.lower()] = keyword

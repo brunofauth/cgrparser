@@ -179,7 +179,7 @@ from __future__ import annotations
 try: 
     from .ast_base import Node, NodeVisitor
 except ImportError:
-    from ast_base import Node, NodeVisitor
+    from ast_base import Node, NodeVisitor # type: ignore
 
 import typing
 
@@ -187,7 +187,7 @@ if typing.TYPE_CHECKING:
     try: 
         from .plyparser import Coord
     except ImportError:
-        from plyparser import Coord
+        from plyparser import Coord # type: ignore
 
 
 '''
