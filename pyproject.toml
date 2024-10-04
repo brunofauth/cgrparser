@@ -27,6 +27,7 @@ python = "^3.8"
 [tool.poetry.group.dev.dependencies]
 ptpython = "^3.0.29"
 mypy = "^1.11.2"
+poethepoet = "^0.29.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -41,11 +42,17 @@ cmd  = "env -C ./src/pycparser/ python3 -B _build_tables.py"
 help = "Build some tables I guess"
 
 [tool.mypy]
+warn_unused_ignores = true
+warn_unreachable = true
 exclude = [
     'yacctab\.py$',
     'lextab\.py$',
     '^src/pycparser/ply',
 ]
+enable_incomplete_feature = [
+    "NewGenericSyntax",
+]
+
 
 # packages = ['pycparser', 'pycparser.ply']
 # package_data = {'pycparser': ['*.cfg']}
