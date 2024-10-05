@@ -10,47 +10,51 @@
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
 #-----------------------------------------------------------------
-from itertools import chain
+from __future__ import annotations
+from itertools import chain, starmap
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import TextIO
+    from collections.abc import Iterable
+    from pathlib import Path
+    type FilePath = str | Path
 
 
-class ASTCodeGenerator(object):
+def generate_ast_code(cfg_fp: FilePath, out_fp: FilePath) -> None:
+    """Generates the code into file, an open file buffer."""
+    node_cfgs: list[NodeCfg] = list(starmap(NodeCfg, parse_astcfg_file(cfg_fp)))
 
-    def __init__(self, cfg_filename='_c_ast.cfg'):
-        """ Initialize the code generator from a configuration
-            file.
-        """
-        self.cfg_filename = cfg_filename
-        self.node_cfg = [NodeCfg(name, contents) for (name, contents) in self.parse_cfgfile(cfg_filename)]
+    with open(out_fp, "w") as out_file:
+        out_file.write(_PROLOGUE_COMMENT.format(cfg_fp=cfg_fp))
+        out_file.write(_PROLOGUE_CODE)
 
-    def generate(self, file=None):
-        """ Generates the code into file, an open file buffer.
-        """
-        file.write(_PROLOGUE_COMMENT.format(cfg_filename=self.cfg_filename))
-        file.write(_PROLOGUE_CODE)
+        for node_cfg in node_cfgs:
+            out_file.write(node_cfg.generate_source())
+            out_file.write('\n\n')
 
-        for node_cfg in self.node_cfg:
-            file.write(node_cfg.generate_source())
-            file.write('\n\n')
 
-    def parse_cfgfile(self, filename):
-        """ Parse the configuration file and yield pairs of
-            (name, contents) for each node.
-        """
-        with open(filename, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                colon_i = line.find(':')
-                lbracket_i = line.find('[')
-                rbracket_i = line.find(']')
-                if colon_i < 1 or lbracket_i <= colon_i or rbracket_i <= lbracket_i:
-                    raise RuntimeError("Invalid line in %s:\n%s\n" % (filename, line))
+def _parse_astcfg_file(cfg_fp: FilePath, lines: Iterable[str]) -> Iterable[tuple[str, list[str]]]:
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if line == "" or line.startswith('#'):
+            continue
+        colon_idx = line.find(':')
+        lbracket_idx = line.find('[')
+        rbracket_idx = line.find(']')
+        if colon_idx < 1 or lbracket_idx <= colon_idx or rbracket_idx <= lbracket_idx:
+            raise SyntaxError(f"{cfg_fp}:{i+1}: Invalid syntax on {line!r}")
 
-                name = line[:colon_i]
-                val = line[lbracket_i + 1:rbracket_i]
-                vallist = [v.strip() for v in val.split(',')] if val else []
-                yield name, vallist
+        node_name = line[:colon_idx].strip()
+        val = line[lbracket_idx + 1:rbracket_idx]
+        node_children = [v.strip() for v in val.split(',')] if val else []
+        yield node_name, node_children
+
+
+def parse_astcfg_file(cfg_fp: FilePath) -> Iterable[tuple[str, list[str]]]:
+    """Yield pairs of (name, contents) for each node."""
+    with open(cfg_fp) as cfg_contents:
+        yield from _parse_astcfg_file(cfg_fp, cfg_contents)
 
 
 class NodeCfg(object):
@@ -149,15 +153,15 @@ class NodeCfg(object):
 
     def _gen_attr_names(self):
         if len(self.attr) == 0:
-            return "    attr_names = ()"
-        return f"    attr_names = ({', '.join(repr(name) for name in self.attr)},)"
+            return "    attr_names = ()\n"
+        return f"    attr_names = ({', '.join(repr(name) for name in self.attr)},)\n"
 
 
 _PROLOGUE_COMMENT = \
 r'''#-----------------------------------------------------------------
 # ** ATTENTION **
 # This code was automatically generated from the file:
-# {cfg_filename}
+# {cfg_fp}
 #
 # Do not modify it directly. Modify the configuration file and
 # run the generator again.
@@ -170,24 +174,15 @@ r'''#-----------------------------------------------------------------
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
 #-----------------------------------------------------------------
-
 '''
 
 _PROLOGUE_CODE = r'''
 from __future__ import annotations
-
-try: 
-    from .ast_base import Node, NodeVisitor
-except ImportError:
-    from ast_base import Node, NodeVisitor # type: ignore
-
+from .ast_base import Node, NodeVisitor
 import typing
 
 if typing.TYPE_CHECKING:
-    try: 
-        from .plyparser import Coord
-    except ImportError:
-        from plyparser import Coord # type: ignore
+    from .plyparser import Coord
 
 
 '''

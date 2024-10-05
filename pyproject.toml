@@ -38,8 +38,12 @@ pre_build = "build-tables"
 pre_install = "build-tables"
 
 [tool.poe.tasks.build-tables]
-cmd  = "env -C ./src/pycparser/ python3 -B _build_tables.py"
-help = "Build some tables I guess"
+cmd  = "python3 ./codegen/build_tables.py"
+help = "Build 'lextab.py', 'yacctab.py' and 'c_ast.py'"
+
+[tool.poe.tasks.clean]
+cmd = "python3 -B ./codegen/clean_cached_files.py"
+help = "Remove all '__pycache__' dirs and generated tables"
 
 [tool.mypy]
 warn_unused_ignores = true
@@ -52,8 +56,3 @@ exclude = [
 enable_incomplete_feature = [
     "NewGenericSyntax",
 ]
-
-
-# packages = ['pycparser', 'pycparser.ply']
-# package_data = {'pycparser': ['*.cfg']}
-# cmdclass = {'install': install, 'sdist': sdist}
