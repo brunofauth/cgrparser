@@ -42,7 +42,10 @@ cmd  = "python3 ./codegen/build_tables.py"
 help = "Build 'lextab.py', 'yacctab.py' and 'c_ast.py'"
 
 [tool.poe.tasks.clean]
-cmd = "python3 -B ./codegen/clean_cached_files.py"
+shell = """
+    rm -rf ./dist
+    python3 -B ./codegen/clean_cached_files.py
+"""
 help = "Remove all '__pycache__' dirs and generated tables"
 
 [tool.poe.tasks.test]

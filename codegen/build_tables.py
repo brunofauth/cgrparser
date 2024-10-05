@@ -54,7 +54,6 @@ if __name__ == "__main__":
 
     # (re)build cache for generated optimized files
     cleanup("..", targetfiles=[])
-    importlib.reload(pycparser)
-    importlib.reload(pycparser.lextab)
-    importlib.reload(pycparser.yacctab)
-    importlib.reload(pycparser.c_ast)
+    import_from_fp("pycparser.lextab", PYCPARSER_ROOT / "lextab.py")
+    import_from_fp("pycparser.yacctab", PYCPARSER_ROOT / "yacctab.py")
+    import_from_fp("pycparser.c_ast", PYCPARSER_ROOT / "c_ast.py")
