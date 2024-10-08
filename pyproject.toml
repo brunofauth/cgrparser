@@ -52,6 +52,13 @@ help = "Remove all '__pycache__' dirs and generated tables"
 cmd = "python -m unittest discover"
 help = "Run unit tests"
 
+[tool.poe.tasks.lint]
+shell = '''
+    printf \\033c
+    mypy src/
+'''
+help = "Run mypy on codebase"
+
 [tool.mypy]
 warn_unused_ignores = true
 warn_unreachable = true

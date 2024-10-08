@@ -1929,29 +1929,23 @@ class TestCParser_fundamentals(TestCParser_base):
             }
         '''
         s1_ast = self.parse(s1)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[1], For)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[1].stmt, Compound)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[1].stmt.block_items[0], Pragma)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[1].stmt.block_items[1], Assignment)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[2], While)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[2].stmt, Compound)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[2].stmt.block_items[0], Pragma)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[2].stmt.block_items[1], Assignment)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[3], Label)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[3].stmt, Compound)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[3].stmt.block_items[0], Pragma)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[3].stmt.block_items[1], Assignment)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[4], If)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[4].iftrue, Compound)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[4].iftrue.block_items[0], Pragma)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[4].iftrue.block_items[1], Pragma)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[4].iftrue.block_items[2], Assignment)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[5], Switch)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[5].stmt.stmts[0], Compound)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[5].stmt.stmts[0].block_items[0],
-                              Pragma)
-        self.assertIsInstance(s1_ast.ext[0].body.block_items[5].stmt.stmts[0].block_items[1],
-                              Assignment)
+        _, for_stmt, while_stmt, label_stmt, if_stmt, switch_stmt = s1_ast.ext[0].body.block_items
+
+        self.assertEqual(for_stmt, _dummy(For)(stmt=_dummy(Compound)(block_items=[
+            _dummy(Pragma)(), _dummy(Assignment)()
+        ])))
+        self.assertEqual(while_stmt, _dummy(While)(stmt=_dummy(Compound)(block_items=[
+            _dummy(Pragma)(), _dummy(Assignment)()
+        ])))
+        self.assertEqual(label_stmt, _dummy(Label)(stmt=_dummy(Compound)(block_items=[
+            _dummy(Pragma)(), _dummy(Assignment)()
+        ])))
+        self.assertEqual(if_stmt, _dummy(If)(iftrue=_dummy(Compound)(block_items=[
+            _dummy(Pragma)(), _dummy(Pragma)(), _dummy(Assignment)()
+        ])))
+        self.assertEqual(switch_stmt, _dummy(Switch)(stmt=_dummy(Case)(stmts=[
+            _dummy(Compound)(block_items=[ _dummy(Pragma)(), _dummy(Assignment)() ])
+        ])))
 
 
 class TestCParser_whole_code(TestCParser_base):
