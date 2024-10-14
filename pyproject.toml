@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'pycparser'
-version = '2.24.1'
+version = '2.25.0'
 description = 'C to AST parser, written in Python'
 authors = ['Eli Bendersky <eliben@gmail.com>']
 license = 'BSD-3-Clause'
@@ -49,7 +49,10 @@ shell = """
 help = "Remove all '__pycache__' dirs and generated tables"
 
 [tool.poe.tasks.test]
-cmd = "python -m unittest discover"
+shell = '''
+    printf \\033c
+    python -m unittest discover --catch
+'''
 help = "Run unit tests"
 
 [tool.poe.tasks.lint]

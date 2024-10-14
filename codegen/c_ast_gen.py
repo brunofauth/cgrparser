@@ -87,7 +87,6 @@ class NodeCfg(object):
         return '\n\n'.join([
             f"class {self.name}(Node):",
             self._gen_init(),
-            self._gen_children(),
             self._gen_iter(),
             self._gen_attr_names(),
         ])
@@ -109,27 +108,6 @@ class NodeCfg(object):
             src_lines.append("        self.%s = %s" % (name, name))
 
         return "\n".join(src_lines)
-
-    def _gen_children(self):
-        src_lines = ['    def children(self):']
-
-        if len(self.all_entries) == 0:
-            src_lines.append('        return ()')
-            return '\n'.join(src_lines)
-
-        src_lines.append('        nodes = []')
-
-        for child in self.child:
-            src_lines.append('        '
-                                f'if self.{child} is not None: nodes.append(("{child}", self.{child}))')
-
-        for child in self.seq_child:
-            src_lines.append('        '
-                                f'for i, child in enumerate(self.{child} or []):'
-                                f' nodes.append(("{child}[%d]" % i, child))')
-
-        src_lines.append('        return tuple(nodes)')
-        return '\n'.join(src_lines)
 
     def _gen_iter(self):
         src_lines = ['    def __iter__(self):']

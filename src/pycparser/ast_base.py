@@ -1,7 +1,12 @@
 from __future__ import annotations
 
-import contextlib
+from collections.abc import Sequence
+import typing
 import sys
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Any
 
 
 def _repr(obj):
@@ -14,21 +19,38 @@ def _repr(obj):
         return repr(obj)
 
 
+_types: dict[str, set[str]] = {}
+
+
 class Node(object):
     __slots__ = ()
     _eq_ignore = ()
-    """ Abstract base class for AST nodes.
-    """
+    attr_names: tuple[str, ...] = ()
 
-    @classmethod
-    @contextlib.contextmanager
-    def ctx_eq_ignore(cls, *attrs):
-        try:
-            old_value = cls._eq_ignore
-            cls._eq_ignore = attrs
-            yield
-        finally:
-            cls._eq_ignore = old_value
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name[0] != '_':
+            _types.setdefault(f"{self.__class__.__name__}.{name}", set()).add(type(value))
+        super().__setattr__(name, value)
+
+    def _child_node_names(self) -> set[str]:
+        return set(self.__slots__[:-2]) - set(self.attr_names)
+
+    def __iter__(self) -> Iterable[Node]:
+        for field in self._child_node_names():
+            if isinstance(value := getattr(self, field), Sequence):
+                yield from value
+            elif value is not None:
+                yield value
+
+    def _children(self, skip_none: bool = True) -> Iterable[tuple[str, Any]]:
+        for field in self._child_node_names():
+            if isinstance(value := getattr(self, field), Sequence):
+                yield from map(lambda x: (f"{field}[{x[0]}]", x[1]), enumerate(value))
+            elif not skip_none or value is not None:
+                yield (field, value)
+
+    def children(self, skip_none: bool = True) -> tuple[tuple[str, Any], ...]:
+        return tuple(self._children(skip_none=skip_none))
 
     def __eq__(self, other: object) -> bool:
         if type(self) != type(other):
@@ -52,6 +74,7 @@ class Node(object):
 
         indent = ''
         separator = ''
+        name: str
         for name in self.__slots__[:-2]:
             result += separator
             result += indent
@@ -64,11 +87,6 @@ class Node(object):
         result += indent + ')'
 
         return result
-
-    def children(self):
-        """ A sequence of all children that are Nodes
-        """
-        pass
 
     def show(self,
                 buf=sys.stdout,

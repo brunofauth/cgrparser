@@ -8,6 +8,7 @@
 #------------------------------------------------------------------------------
 
 from . import c_ast
+from .model import DeclSpecifiers, FunctionSpecifierKind, StorageSpecifierKind, TypeQualifierSpecifierKind
 
 
 def fix_switch_cases(switch_node):
@@ -129,8 +130,9 @@ def fix_atomic_specifiers(decl):
             typ = typ.type
         except AttributeError:
             return decl
-    if '_Atomic' in typ.quals and '_Atomic' not in decl.quals:
-        decl.quals.append('_Atomic')
+    _atomic = TypeQualifierSpecifierKind.ATOMIC
+    if _atomic in typ.quals and _atomic not in decl.quals:
+        decl.quals |= TypeQualifierSpecifierKind.ATOMIC
     if typ.declname is None:
         typ.declname = decl.name
 
@@ -144,8 +146,9 @@ def _fix_atomic_specifiers_once(decl):
     parent = decl
     grandparent = None
     node = decl.type
+    _atomic = TypeQualifierSpecifierKind.ATOMIC
     while node is not None:
-        if isinstance(node, c_ast.Typename) and '_Atomic' in node.quals:
+        if isinstance(node, c_ast.Typename) and _atomic in node.quals:
             break
         try:
             grandparent = parent
@@ -159,6 +162,10 @@ def _fix_atomic_specifiers_once(decl):
 
     assert isinstance(parent, c_ast.TypeDecl)
     grandparent.type = node.type
-    if '_Atomic' not in node.type.quals:
-        node.type.quals.append('_Atomic')
+    try:
+        if _atomic not in node.type.quals:
+            node.type.quals |= _atomic
+    except:
+        print(f'O-O-O-O-O-O {node.type=}')
+        raise
     return decl, True

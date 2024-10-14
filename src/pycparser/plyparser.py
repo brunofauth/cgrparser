@@ -7,8 +7,14 @@
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
 #-----------------------------------------------------------------
+from __future__ import annotations
 
+import typing
 import warnings
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Never
 
 
 class Coord(object):
@@ -19,31 +25,30 @@ class Coord(object):
     """
     __slots__ = ('file', 'line', 'column', '__weakref__')
 
-    def __init__(self, file, line, column=None):
+    def __init__(self, file: str, line: int, column: int | None = None):
         self.file = file
         self.line = line
         self.column = column
 
     def __str__(self):
-        str = "%s:%s" % (self.file, self.line)
-        if self.column:
-            str += ":%s" % self.column
-        return str
+        if self.column is not None:
+            return f"{self.file}:{self.line}:{self.column}"
+        return f"{self.file}:{self.line}"
 
 
 class ParseError(Exception):
     __slots__ = ["where", "message", "note"]
 
-    def __init__(self, where: Coord, message: str, note: str | None = None) -> None:
+    def __init__(self, where: Coord, message: str, notes: list[str] | None = None) -> None:
         self.where = where
         self.message = message
-        self.note = note
+        self.notes = notes or []
 
     def __str__(self) -> str:
-        if self.note is None:
+        if len(self.notes) == 0:
             return f"{self.where}: {self.message}"
         else:
-            return f"{self.where}: {self.message}\n==> Note: {self.note}"
+            return f"{self.where}: {self.message}" + "".join(f"\n==> Note: {note}" for note in self.notes)
 
 
 class PLYParser(object):
@@ -62,7 +67,7 @@ class PLYParser(object):
         optrule.__name__ = 'p_%s' % optname
         setattr(self.__class__, optrule.__name__, optrule)
 
-    def _coord(self, lineno, column=None) -> Coord:
+    def _coord(self, lineno: int, column: int | None = None) -> Coord:
         return Coord(file=self.clex.filename, line=lineno, column=column)
 
     def _token_coord(self, p, token_idx):
@@ -76,8 +81,8 @@ class PLYParser(object):
         column = (p.lexpos(token_idx) - (last_cr))
         return self._coord(p.lineno(token_idx), column)
 
-    def _parse_error(self, msg: str, coord: Coord, note: str | None = None):
-        raise ParseError(where=coord, message=msg, note=note)
+    def _parse_error(self, msg: str, coord: Coord, note: str | None = None) -> Never:
+        raise ParseError(where=coord, message=msg, notes=None if note is None else [note])
 
 
 def parameterized(*params):

@@ -4,15 +4,21 @@
 from __future__ import annotations
 
 import functools
+import itertools
 import os, sys
 import io
 import unittest
+import typing
 
 sys.path[0:0] = ['.', '..']
 
 from pycparser import c_parser
 from pycparser.c_ast import *
 from pycparser.c_parser import ParseError
+from pycparser.model import TypeQualifierSpecifierKind as Tqsk, StorageSpecifierKind as Ssk, FunctionSpecifierKind as Fsk, PtrIntent, PtrNullness
+
+if typing.TYPE_CHECKING:
+    from typing import Self, Any
 
 # yapf: disable
 _c_parser = c_parser.CParser(
@@ -39,9 +45,83 @@ def _dummy[**P, T: type[Node]](node_type: type[Node]) -> Callable[P, T]:
     return _ctor
 
 
+class AstMismatchError(AssertionError):
+
+    def __init__(self, field_stack: list[str], message: str, notes: list[str] | None = None) -> None:
+        self.field_stack = field_stack
+        self.message = message
+        self.notes = notes
+
+    def _build_tree_path(self) -> str:
+        path_parts = (f"{' ' * 4 * (i+1)}.{name}<{typ.__name__}>" \
+                for i, (name, typ) in enumerate(self.field_stack))
+        return f"==> Path to node: <tree_root>\n{ '\n'.join(path_parts) }" \
+                if len(self.field_stack) != 0 else ""
+    
+    def _build_notes(self) -> Iterable[str]:
+        for note in self.notes or []:
+            yield f"==> Note: {note}"
+
+    def __str__(self) -> str:
+        return '\n'.join(part for part in [
+            f"ASTs differ at level {len(self.field_stack)}: {self.message}",
+            self._build_tree_path(),
+            *self._build_notes(),
+        ] if part != "")
+
+    @classmethod
+    def from_types(cls, field_stack: list[str], t1: type[c_ast.Node], t2: type[c_ast.Node]) -> Self:
+        return cls(field_stack, f"node types {t1} != {t2}")
+
+    @classmethod
+    def from_attrs(cls, field_stack: list[str], attr_name: str, val1: Any, val2: Any) -> Self:
+        return cls(field_stack, f"attribute {attr_name!r}", notes=[
+            f"{attr_name!r} a != {attr_name!r} b:\n    a: {val1!r}\n    b: {val2!r}",
+        ])
+
+    # @classmethod
+    # def from_asymetry(cls, field_stack: list[str], child_name) -> Self:
+    #     pass
+
+class MissingChild:
+    def __repr__(self) -> str:
+        return "child does not exist"
+
+
+def _assert_ast(field_stack: list[str], tree1: c_ast.Node, tree2: c_ast.Node) -> None:
+    if (t1 := type(tree1)) != (t2 := type(tree2)):
+        raise AstMismatchError.from_types(field_stack, t1, t2)
+
+    for attr in t1.attr_names:
+        if (a1 := getattr(tree1, attr)) == ...:
+            continue
+        if (a2 := getattr(tree2, attr)) == ...:
+            continue
+        if a1 != a2:
+            raise AstMismatchError.from_attrs(field_stack, attr, a1, a2)
+
+    children = zip(tree1.children(skip_none=False), tree2.children(skip_none=False), strict=True)
+    for (name1, child1), (_, child2) in children:
+        if child1 == ... or child2 == ...:
+            continue
+        c1_is_node = isinstance(child1, Node)
+        c2_is_node = isinstance(child2, Node)
+        if c1_is_node ^ c2_is_node:
+            raise AstMismatchError.from_attrs(field_stack, name1, child1, child2)
+        if c1_is_node:
+            field_stack.append((name1, type(child1)))
+            _assert_ast(field_stack, child1, child2)
+            field_stack.pop()
+            continue
+        if child1 != child2:
+            raise AstMismatchError.from_attrs(field_stack, name1, child1, child2)
+
+
+def assert_ast(tree1: c_ast.Node, tree2: c_ast.Node) -> None:
+    return _assert_ast([], tree1, tree2)
+
 def expand_decl(decl):
-    """ Converts the declaration into a nested list.
-    """
+    """ Converts the declaration into a nested list. """
     typ = type(decl)
 
     if typ == TypeDecl:
@@ -85,7 +165,7 @@ def expand_decl(decl):
                 return ['Typename', nested]
         elif typ == ArrayDecl:
             dimval = decl.dim.value if decl.dim else ''
-            return ['ArrayDecl', dimval, decl.dim_quals, nested]
+            return ['ArrayDecl', dimval, decl.dim_quals, decl.is_static_index, nested]
         elif typ == PtrDecl:
             if decl.quals:
                 return ['PtrDecl', decl.quals, nested]
@@ -311,17 +391,17 @@ class TestCParser_fundamentals(TestCParser_base):
 
         self.assertEqual(self.get_decl('long ar[15];'),
             ['Decl', 'ar',
-                ['ArrayDecl', '15', [],
+                ['ArrayDecl', '15', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['long']]]]])
 
         self.assertEqual(self.get_decl('long long ar[15];'),
             ['Decl', 'ar',
-                ['ArrayDecl', '15', [],
+                ['ArrayDecl', '15', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['long', 'long']]]]])
 
         self.assertEqual(self.get_decl('unsigned ar[];'),
             ['Decl', 'ar',
-                ['ArrayDecl', '', [],
+                ['ArrayDecl', '', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['unsigned']]]]])
 
         self.assertEqual(self.get_decl('int strlen(char* s);'),
@@ -364,49 +444,50 @@ class TestCParser_fundamentals(TestCParser_base):
         self.assertEqual(self.get_decl('int (*a)[1][2];'),
             ['Decl', 'a',
                 ['PtrDecl',
-                    ['ArrayDecl', '1', [],
-                        ['ArrayDecl', '2', [],
+                    ['ArrayDecl', '1', Tqsk.EMPTY, False,
+                        ['ArrayDecl', '2', Tqsk.EMPTY, False,
                         ['TypeDecl', ['IdentifierType', ['int']]]]]]])
 
         self.assertEqual(self.get_decl('int *a[1][2];'),
             ['Decl', 'a',
-                ['ArrayDecl', '1', [],
-                    ['ArrayDecl', '2', [],
+                ['ArrayDecl', '1', Tqsk.EMPTY, False,
+                    ['ArrayDecl', '2', Tqsk.EMPTY, False,
                         ['PtrDecl', ['TypeDecl', ['IdentifierType', ['int']]]]]]])
 
         self.assertEqual(self.get_decl('char* const* p;'),
             ['Decl', 'p',
-                ['PtrDecl', ['PtrDecl', ['const'],
+                ['PtrDecl', ['PtrDecl', Tqsk.CONST,
                     ['TypeDecl', ['IdentifierType', ['char']]]]]])
 
         self.assertEqual(self.get_decl('const char* const* p;'),
-            ['Decl', ['const'], 'p',
-                ['PtrDecl', ['PtrDecl', ['const'],
+            ['Decl', Tqsk.CONST, 'p',
+                ['PtrDecl', ['PtrDecl', Tqsk.CONST,
                     ['TypeDecl', ['IdentifierType', ['char']]]]]])
 
         self.assertEqual(self.get_decl('char* * const p;'),
             ['Decl', 'p',
-                ['PtrDecl', ['const'], ['PtrDecl',
+                ['PtrDecl', Tqsk.CONST, ['PtrDecl',
                     ['TypeDecl', ['IdentifierType', ['char']]]]]])
 
         self.assertEqual(self.get_decl('char ***ar3D[40];'),
             ['Decl', 'ar3D',
-                ['ArrayDecl', '40', [],
+                ['ArrayDecl', '40', Tqsk.EMPTY, False,
                     ['PtrDecl', ['PtrDecl', ['PtrDecl',
                         ['TypeDecl', ['IdentifierType', ['char']]]]]]]])
 
         self.assertEqual(self.get_decl('char (***ar3D)[40];'),
             ['Decl', 'ar3D',
                 ['PtrDecl', ['PtrDecl', ['PtrDecl',
-                    ['ArrayDecl', '40', [], ['TypeDecl', ['IdentifierType', ['char']]]]]]]])
+                    ['ArrayDecl', '40', Tqsk.EMPTY, False,
+                        ['TypeDecl', ['IdentifierType', ['char']]]]]]]])
 
         self.assertEqual(self.get_decl('int (*const*const x)(char, int);'),
          ['Decl',
           'x',
           ['PtrDecl',
-           ['const'],
+           Tqsk.CONST,
            ['PtrDecl',
-            ['const'],
+            Tqsk.CONST,
             ['FuncDecl',
              [['Typename', ['TypeDecl', ['IdentifierType', ['char']]]],
               ['Typename', ['TypeDecl', ['IdentifierType', ['int']]]]],
@@ -414,7 +495,7 @@ class TestCParser_fundamentals(TestCParser_base):
 
         self.assertEqual(self.get_decl('int (*x[4])(char, int);'),
             ['Decl', 'x',
-                ['ArrayDecl', '4', [],
+                ['ArrayDecl', '4', Tqsk.EMPTY, False,
                     ['PtrDecl',
                         ['FuncDecl',
                             [   ['Typename',  ['TypeDecl', ['IdentifierType', ['char']]]],
@@ -423,13 +504,13 @@ class TestCParser_fundamentals(TestCParser_base):
 
         self.assertEqual(self.get_decl('char *(*(**foo [][8])())[];'),
             ['Decl', 'foo',
-                ['ArrayDecl', '', [],
-                    ['ArrayDecl', '8', [],
+                ['ArrayDecl', '', Tqsk.EMPTY, False,
+                    ['ArrayDecl', '8', Tqsk.EMPTY, False,
                         ['PtrDecl', ['PtrDecl',
                             ['FuncDecl',
                                 [],
                                 ['PtrDecl',
-                                    ['ArrayDecl', '', [],
+                                    ['ArrayDecl', '', Tqsk.EMPTY, False,
                                         ['PtrDecl',
                                             ['TypeDecl',
                                                 ['IdentifierType', ['char']]]]]]]]]]]])
@@ -450,7 +531,7 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'k',
                 ['PtrDecl',
                     ['FuncDecl',
-                        [['Typename', ['const'], ['TypeDecl', ['IdentifierType', ['int']]]]],
+                        [['Typename', Tqsk.CONST, ['TypeDecl', ['IdentifierType', ['int']]]]],
                         ['TypeDecl', ['IdentifierType', ['int']]]]]])
 
         # named w/o quals
@@ -466,7 +547,7 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'k',
                 ['PtrDecl',
                     ['FuncDecl',
-                        [['Decl', ['const', 'volatile'], 'q',
+                        [['Decl', Tqsk.CONST | Tqsk.VOLATILE, 'q',
                             ['TypeDecl', ['IdentifierType', ['int']]]]],
                         ['TypeDecl', ['IdentifierType', ['int']]]]]])
 
@@ -474,7 +555,7 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'k',
                 ['PtrDecl',
                     ['FuncDecl',
-                        [['Decl', ['_Atomic', 'volatile'], 'q',
+                        [['Decl', Tqsk.ATOMIC | Tqsk.VOLATILE, 'q',
                             ['TypeDecl', ['IdentifierType', ['int']]]]],
                         ['TypeDecl', ['IdentifierType', ['int']]]]]])
 
@@ -482,7 +563,7 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'k',
                 ['PtrDecl',
                     ['FuncDecl',
-                        [['Decl', ['const', 'volatile'], 'q',
+                        [['Decl', Tqsk.CONST | Tqsk.VOLATILE, 'q',
                             ['PtrDecl', ['TypeDecl', ['IdentifierType', ['int']]]]]],
                         ['TypeDecl', ['IdentifierType', ['int']]]]]])
 
@@ -491,7 +572,7 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'k',
                 ['PtrDecl',
                     ['FuncDecl',
-                        [['Decl', ['restrict'], 'q',
+                        [['Decl', Tqsk.RESTRICT, 'q',
                             ['PtrDecl',
                                 ['TypeDecl', ['IdentifierType', ['int']]]]]],
                         ['TypeDecl', ['IdentifierType', ['int']]]]]])
@@ -501,7 +582,7 @@ class TestCParser_fundamentals(TestCParser_base):
         self.assertEqual(self.get_decl('int zz(int p[static 10]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Decl', 'p', ['ArrayDecl', '10', ['static'],
+                    [['Decl', 'p', ['ArrayDecl', '10', Tqsk.EMPTY, True,
                                        ['TypeDecl', ['IdentifierType', ['int']]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
         # anonymous function parameter
@@ -509,37 +590,52 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'zz',
                 ['FuncDecl',
                     [['Typename',
-                      ['ArrayDecl', '10', ['static'],
+                      ['ArrayDecl', '10', Tqsk.EMPTY, True,
                        ['TypeDecl', ['IdentifierType', ['int']]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
+
+        assert_ast(
+            self.parse('int zz(int [static const restrict 10]);').ext[0],
+            _dummy(Decl)(type=_dummy(FuncDecl)(
+                args=_dummy(ParamList)(params=[_dummy(Typename)(
+                    type=_dummy(ArrayDecl)(
+                        dim=Constant(type='int', value='10'),
+                        dim_quals=Tqsk.CONST | Tqsk.RESTRICT,
+                        is_static_index=True,
+                        type=_dummy(TypeDecl)(type=_dummy(IdentifierType)(names=['int'])),
+                    )
+                )]),
+                type=_dummy(TypeDecl)(type=_dummy(IdentifierType)(names=['int']))
+            ))
+        )
         self.assertEqual(self.get_decl('int zz(int [static const restrict 10]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
                     [['Typename',
-                      ['ArrayDecl', '10', ['static', 'const', 'restrict'],
+                      ['ArrayDecl', '10', Tqsk.CONST | Tqsk.RESTRICT, True,
                        ['TypeDecl', ['IdentifierType', ['int']]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         self.assertEqual(self.get_decl('int zz(int p[const 10]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Decl', 'p', ['ArrayDecl', '10', ['const'],
+                    [['Decl', 'p', ['ArrayDecl', '10', Tqsk.CONST, False,
                                        ['TypeDecl', ['IdentifierType', ['int']]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         self.assertEqual(self.get_decl('int zz(int p[restrict][5]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Decl', 'p', ['ArrayDecl', '', ['restrict'],
-                        ['ArrayDecl', '5', [],
+                    [['Decl', 'p', ['ArrayDecl', '', Tqsk.RESTRICT, False,
+                        ['ArrayDecl', '5', Tqsk.EMPTY, False,
                             ['TypeDecl', ['IdentifierType', ['int']]]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         self.assertEqual(self.get_decl('int zz(int p[const restrict static 10][5]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Decl', 'p', ['ArrayDecl', '10', ['const', 'restrict', 'static'],
-                        ['ArrayDecl', '5', [],
+                    [['Decl', 'p', ['ArrayDecl', '10', Tqsk.CONST | Tqsk.RESTRICT, True,
+                        ['ArrayDecl', '5', Tqsk.EMPTY, False,
                             ['TypeDecl', ['IdentifierType', ['int']]]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
@@ -547,23 +643,23 @@ class TestCParser_fundamentals(TestCParser_base):
         self.assertEqual(self.get_decl('int zz(int [const 10]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Typename', ['ArrayDecl', '10', ['const'],
+                    [['Typename', ['ArrayDecl', '10', Tqsk.CONST, False,
                                        ['TypeDecl', ['IdentifierType', ['int']]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         self.assertEqual(self.get_decl('int zz(int [restrict][5]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Typename', ['ArrayDecl', '', ['restrict'],
-                        ['ArrayDecl', '5', [],
+                    [['Typename', ['ArrayDecl', '', Tqsk.RESTRICT, False,
+                        ['ArrayDecl', '5', Tqsk.EMPTY, False,
                             ['TypeDecl', ['IdentifierType', ['int']]]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         self.assertEqual(self.get_decl('int zz(int [const restrict volatile 10][5]);'),
             ['Decl', 'zz',
                 ['FuncDecl',
-                    [['Typename', ['ArrayDecl', '10', ['const', 'restrict', 'volatile'],
-                        ['ArrayDecl', '5', [],
+                    [['Typename', ['ArrayDecl', '10', Tqsk.CONST | Tqsk.RESTRICT | Tqsk.VOLATILE, False,
+                        ['ArrayDecl', '5', Tqsk.EMPTY, False,
                             ['TypeDecl', ['IdentifierType', ['int']]]]]]],
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
@@ -621,45 +717,44 @@ class TestCParser_fundamentals(TestCParser_base):
 
     def test_nullness_qualifiers(self):
         def assert_func_decl(code: str, func_decl: FuncDecl) -> None:
-            self.assertEqual(self.parse(code).ext[0].type, func_decl)
+            assert_ast(self.parse(code).ext[0].type, func_decl)
 
         assert_func_decl(
             "void my_fun(int * arg1);",
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
-                type=_dummy(PtrDecl)(quals=[]),
+                type=_dummy(PtrDecl)(quals=Tqsk.EMPTY),
             )]))
         )
 
         assert_func_decl(
             "void my_fun(int *);",
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Typename)(
-                type=_dummy(PtrDecl)(quals=[]),
+                type=_dummy(PtrDecl)(quals=Tqsk.EMPTY),
             )]))
         )
 
         assert_func_decl(
-            "void my_fun(int cgr_in * arg1);",
+            ("void my_fun(int cgr_in * arg1);"), 
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
-                type=_dummy(PtrDecl)(quals=["cgr_in"]),
+                type=_dummy(PtrDecl)(intent=PtrIntent.IN),
+            )]))
+        )
+        assert_func_decl( ("void my_fun(int cgr_out * cgr_nullable arg1);"), 
+            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
+                type=_dummy(PtrDecl)(intent=PtrIntent.OUT, nullness=PtrNullness.NULLABLE),
             )]))
         )
         assert_func_decl(
-            "void my_fun(int cgr_out * cgr_nullable arg1);", 
-            _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
-                type=_dummy(PtrDecl)(quals=["cgr_nullable", "cgr_out"]),
-            )]))
-        )
-        assert_func_decl(
-            "void my_fun(int cgr_inout * cgr_not_null const);",
+            ("void my_fun(int cgr_inout * cgr_not_null const);"), 
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Typename)(
-                type=_dummy(PtrDecl)(quals=['const', 'cgr_not_null', 'cgr_inout'])
-            )]))
+                type=_dummy(PtrDecl)(quals=Tqsk.CONST, nullness=PtrNullness.NOT_NULL, intent=PtrIntent.INOUT)
+            )])),
         )
-        self.assertEqual(
-            self.parse('void f(int cgr_in *p) { printf("%d", *p); }').ext[0],
-            _dummy(FuncDef)(decl=_dummy(Decl)(type=_dummy(FuncDecl)(args=ParamList(params=[
-                _dummy(Decl)(type=_dummy(PtrDecl)(quals=["cgr_in"]))
-            ]))))
+        assert_ast(
+            self.parse('void f(int cgr_in *p) { printf("%d", *p); }').ext[0].decl, 
+            _dummy(Decl)(type=_dummy(FuncDecl)(args=ParamList(params=[
+                _dummy(Decl)(type=_dummy(PtrDecl)(intent=PtrIntent.IN))
+            ]))),
         )
 
         self.assert_bad_grammar("void my_fun(cgr_in int * cgr_nullable arg1);")
@@ -675,46 +770,46 @@ class TestCParser_fundamentals(TestCParser_base):
             self.assertEqual(d.quals, quals)
             self.assertEqual(d.storage, storage)
 
-        assert_qs("extern int p;", 0, [], ['extern'])
-        assert_qs("_Thread_local int p;", 0, [], ['_Thread_local'])
-        assert_qs("const long p = 6;", 0, ['const'], [])
-        assert_qs("_Atomic int p;", 0, ['_Atomic'], [])
-        assert_qs("_Atomic restrict int* p;", 0, ['_Atomic', 'restrict'], [])
+        assert_qs("extern int p;", 0, Tqsk.EMPTY, Ssk.EXTERN)
+        assert_qs("_Thread_local int p;", 0, Tqsk.EMPTY, Ssk.THREAD_LOCAL)
+        assert_qs("const long p = 6;", 0, Tqsk.CONST, Ssk.EMPTY)
+        assert_qs("_Atomic int p;", 0, Tqsk.ATOMIC, Ssk.EMPTY)
+        assert_qs("_Atomic restrict int* p;", 0, Tqsk.ATOMIC | Tqsk.RESTRICT, Ssk.EMPTY)
 
         d1 = "static const int p, q, r;"
         for i in range(3):
-            assert_qs(d1, i, ['const'], ['static'])
+            assert_qs(d1, i, Tqsk.CONST, Ssk.STATIC)
 
         d2 = "static char * const p;"
-        assert_qs(d2, 0, [], ['static'])
+        assert_qs(d2, 0, Tqsk.EMPTY, Ssk.STATIC)
         pdecl = self.parse(d2).ext[0].type
         self.assertIsInstance(pdecl, PtrDecl)
-        self.assertEqual(pdecl.quals, ['const'])
+        self.assertEqual(pdecl.quals, Tqsk.CONST)
 
     def test_atomic_specifier(self):
         self.assertEqual(self.get_decl('_Atomic(int) ai;'),
-             ['Decl', ['_Atomic'],
+             ['Decl', Tqsk.ATOMIC,
               'ai',
               ['TypeDecl', ['IdentifierType', ['int']]]])
 
         self.assertEqual(self.get_decl('_Atomic(int*) ai;'),
              ['Decl',
               'ai',
-              ['PtrDecl', ['_Atomic'], ['TypeDecl', ['IdentifierType', ['int']]]]])
+              ['PtrDecl', Tqsk.ATOMIC, ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         self.assertEqual(self.get_decl('_Atomic(_Atomic(int)*) aai;'),
-             ['Decl', ['_Atomic'],
+             ['Decl', Tqsk.ATOMIC,
               'aai',
-              ['PtrDecl', ['_Atomic'], ['TypeDecl', ['IdentifierType', ['int']]]]])
+              ['PtrDecl', Tqsk.ATOMIC, ['TypeDecl', ['IdentifierType', ['int']]]]])
 
         # Multiple declarations with _Atomic(...)
         s = '_Atomic(int) foo, bar;'
         self.assertEqual(self.get_decl(s, 0),
-             ['Decl', ['_Atomic'],
+             ['Decl', Tqsk.ATOMIC,
               'foo',
               ['TypeDecl', ['IdentifierType', ['int']]]])
         self.assertEqual(self.get_decl(s, 1),
-             ['Decl', ['_Atomic'],
+             ['Decl', Tqsk.ATOMIC,
               'bar',
               ['TypeDecl', ['IdentifierType', ['int']]]])
 
@@ -726,9 +821,9 @@ class TestCParser_fundamentals(TestCParser_base):
         s = 'typedef _Atomic(_Atomic(_Atomic(int (*)(void)) *) *) t;'
         self.assertEqual(self.get_decl(s, 0),
             ['Typedef', 't',
-             ['PtrDecl', ['_Atomic'],
-              ['PtrDecl', ['_Atomic'],
-               ['PtrDecl', ['_Atomic'],
+             ['PtrDecl', Tqsk.ATOMIC,
+              ['PtrDecl', Tqsk.ATOMIC,
+               ['PtrDecl', Tqsk.ATOMIC,
                 ['FuncDecl', [['Typename', ['TypeDecl', ['IdentifierType', ['void']]]]],
                  ['TypeDecl', ['IdentifierType', ['int']]]]]]]])
 
@@ -1005,9 +1100,9 @@ class TestCParser_fundamentals(TestCParser_base):
          ['Typedef',
           'T',
           ['PtrDecl',
-           ['const'],
+           Tqsk.CONST,
            ['PtrDecl',
-            ['const'],
+            Tqsk.CONST,
             ['FuncDecl',
              [['Typename', ['TypeDecl', ['IdentifierType', ['void']]]]],
              ['TypeDecl', ['IdentifierType', ['int']]]]]]])
@@ -1381,7 +1476,7 @@ class TestCParser_fundamentals(TestCParser_base):
                             ['TypeDecl',
                                 ['IdentifierType', ['Name']]]],
                         ['Decl', 'NameArray',
-                            ['ArrayDecl', '3', [],
+                            ['ArrayDecl', '3', Tqsk.EMPTY, False,
                                 ['TypeDecl', ['IdentifierType', ['Name']]]]]]]]])
         self.assertEqual(s1_ast.ext[3].body.block_items[0].lvalue.field.name, 'Name')
 
@@ -1515,7 +1610,7 @@ class TestCParser_fundamentals(TestCParser_base):
             ['Decl', 'notp', ['TypeDecl', ['IdentifierType', ['char']]]])
         self.assertEqual(self.get_decl(d2, 2),
             ['Decl', 'ar',
-                ['ArrayDecl', '4', [],
+                ['ArrayDecl', '4', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['char']]]]])
 
     def test_invalid_multiple_types_error(self):
@@ -1570,11 +1665,11 @@ class TestCParser_fundamentals(TestCParser_base):
         '''
         self.assertEqual(self.get_decl(d3, 0),
             ['Typedef', 'numberarray',
-                ['ArrayDecl', '5', [],
+                ['ArrayDecl', '5', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
         self.assertEqual(self.get_decl(d3, 1),
             ['Typedef', 'numberarray',
-                ['ArrayDecl', '5', [],
+                ['ArrayDecl', '5', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['int']]]]])
 
     def test_decl_inits(self):
@@ -1596,7 +1691,7 @@ class TestCParser_fundamentals(TestCParser_base):
         d2 = 'long ar[] = {7, 8, 9};'
         self.assertEqual(self.get_decl(d2),
             ['Decl', 'ar',
-                ['ArrayDecl', '', [],
+                ['ArrayDecl', '', Tqsk.EMPTY, False,
                     ['TypeDecl', ['IdentifierType', ['long']]]]])
         self.assertEqual(self.get_decl_init(d2),
             [   ['Constant', 'int', '7'],
@@ -1840,11 +1935,11 @@ class TestCParser_fundamentals(TestCParser_base):
 
     def test_inline_specifier(self):
         ps2 = self.parse('static inline void inlinefoo(void);')
-        self.assertEqual(ps2.ext[0].funcspec, ['inline'])
+        self.assertEqual(ps2.ext[0].funcspec, Fsk.INLINE)
 
     def test_noreturn_specifier(self):
         ps2 = self.parse('static _Noreturn void noreturnfoo(void);')
-        self.assertEqual(ps2.ext[0].funcspec, ['_Noreturn'])
+        self.assertEqual(ps2.ext[0].funcspec, Fsk.NORETURN)
 
     # variable length array
     def test_vla(self):
@@ -2410,10 +2505,10 @@ class TestCParser_typenames(TestCParser_base):
         '''
         s3_ast = self.parse(s3)
         self.assertEqual(expand_decl(s3_ast.ext[1].type.args.params[0]),
-            ['Decl', 'aa', ['ArrayDecl', '', [], ['TypeDecl', ['IdentifierType', ['int']]]]])
+            ['Decl', 'aa', ['ArrayDecl', '', Tqsk.EMPTY, False, ['TypeDecl', ['IdentifierType', ['int']]]]])
         self.assertEqual(expand_decl(s3_ast.ext[2].type.args.params[0]),
             ['Typename', ['FuncDecl',
-                [['Typename', ['ArrayDecl', '', [], ['TypeDecl', ['IdentifierType', ['TT']]]]]],
+                [['Typename', ['ArrayDecl', '', Tqsk.EMPTY, False, ['TypeDecl', ['IdentifierType', ['TT']]]]]],
                 ['TypeDecl', ['IdentifierType', ['int']]]]])
 
     def test_innerscope_reuse_typedef_name(self):
@@ -2608,9 +2703,15 @@ class TestCParser_typenames(TestCParser_base):
         self.assertRaises(ParseError, self.parse, s2)
 
 
-if __name__ == '__main__':
-    #~ suite = unittest.TestLoader().loadTestsFromNames(
-    #~ ['test_c_parser.TestCParser_fundamentals.test_typedef'])
-
-    #~ unittest.TextTestRunner(verbosity=2).run(suite)
+def main() -> None:
     unittest.main()
+
+
+import atexit
+from pycparser.ast_base import _types
+from pprint import pprint
+
+atexit.register(pprint, _types)
+
+if __name__ == '__main__':
+    main()

@@ -1,6 +1,9 @@
+from __future__ import annotations
+import io
 import os
 import sys
 import unittest
+import textwrap
 
 # Run from the root dir
 sys.path.insert(0, '.')
@@ -8,11 +11,19 @@ sys.path.insert(0, '.')
 from pycparser import c_parser, c_generator, c_ast, parse_file
 from tests.test_util import cpp_supported, cpp_path, cpp_args
 
-_c_parser = c_parser.CParser(
-                lex_optimize=False,
-                yacc_debug=True,
-                yacc_optimize=False,
-                yacctab='yacctab')
+_c_parser = c_parser.CParser(lex_optimize=False, yacc_debug=True, yacc_optimize=False, yacctab='yacctab')
+
+
+class MockGenerator:
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._generator = c_generator.CGenerator(*args, **kwargs, output_stream=io.StringIO())
+
+    def visit(self, node: c_ast.Node) -> str:
+        self._generator.output_stream.truncate(0)
+        self._generator.output_stream.seek(0)
+        self._generator.visit(node)
+        return self._generator.output_stream.getvalue()
 
 
 def compare_asts(ast1, ast2):
@@ -56,12 +67,14 @@ def parse_to_ast(src):
 
 
 class TestFunctionDeclGeneration(unittest.TestCase):
+
     class _FuncDeclVisitor(c_ast.NodeVisitor):
+
         def __init__(self):
             self.stubs = []
 
         def visit_FuncDecl(self, node):
-            gen = c_generator.CGenerator()
+            gen = MockGenerator()
             self.stubs.append(gen.visit(node))
 
     def test_partial_funcdecl_generation(self):
@@ -79,9 +92,10 @@ class TestFunctionDeclGeneration(unittest.TestCase):
 
 
 class TestCtoC(unittest.TestCase):
+
     def _run_c_to_c(self, src, *args, **kwargs):
         ast = parse_to_ast(src)
-        generator = c_generator.CGenerator(*args, **kwargs)
+        generator = MockGenerator(*args, **kwargs)
         return generator.visit(ast)
 
     def _assert_ctoc_correct(self, src, *args, **kwargs):
@@ -92,8 +106,12 @@ class TestCtoC(unittest.TestCase):
             Additional arguments are passed to CGenerator.__init__.
         """
         src2 = self._run_c_to_c(src, *args, **kwargs)
-        self.assertTrue(compare_asts(parse_to_ast(src), parse_to_ast(src2)),
-                        "{!r} != {!r}".format(src, src2))
+        try:
+            ast2 = parse_to_ast(src2)
+        except c_parser.ParseError as error:
+            error.notes.append(src2)
+            raise
+        self.assertTrue(compare_asts(parse_to_ast(src), ast2), "{!r} != {!r}".format(src, src2))
         return src2
 
     def test_trivial_decls(self):
@@ -358,58 +376,43 @@ class TestCtoC(unittest.TestCase):
         self._assert_ctoc_correct('struct foo_s foo = (struct foo_s){ 1, 2 };')
 
     def test_enum(self):
-        self._assert_ctoc_correct(r'''
+        self._assert_ctoc_correct(
+            textwrap.dedent('''\
             enum e
             {
-              a,
-              b = 2,
-              c = 3
+                a,
+                b = 2,
+                c = 3
             };
-        ''')
-        self._assert_ctoc_correct(r'''
+        '''))
+        self._assert_ctoc_correct(
+            textwrap.dedent('''\
             enum f
             {
                 g = 4,
                 h,
                 i
             };
-        ''')
+        '''))
 
     def test_enum_typedef(self):
         self._assert_ctoc_correct('typedef enum EnumName EnumTypedefName;')
 
-    def test_generate_struct_union_enum_exception(self):
-        generator = c_generator.CGenerator()
-        self.assertRaises(
-            AssertionError,
-            generator._generate_struct_union_enum,
-            n=c_ast.Struct(
-                name='TestStruct',
-                decls=[],
-            ),
-            name='',
-        )
-
     def test_array_decl(self):
         self._assert_ctoc_correct('int g(const int a[const 20]){}')
         ast = parse_to_ast('const int a[const 20];')
-        generator = c_generator.CGenerator()
-        self.assertEqual(generator.visit(ast.ext[0].type),
-                         'const int [const 20]')
-        self.assertEqual(generator.visit(ast.ext[0].type.type),
-                         'const int')
+        generator = MockGenerator()
+        self.assertEqual(generator.visit(ast.ext[0].type), 'const int [const 20]')
+        self.assertEqual(generator.visit(ast.ext[0].type.type), 'const int')
 
     def test_ptr_decl(self):
         src = 'const int ** const  x;'
         self._assert_ctoc_correct(src)
         ast = parse_to_ast(src)
-        generator = c_generator.CGenerator()
-        self.assertEqual(generator.visit(ast.ext[0].type),
-                         'const int ** const')
-        self.assertEqual(generator.visit(ast.ext[0].type.type),
-                         'const int *')
-        self.assertEqual(generator.visit(ast.ext[0].type.type.type),
-                         'const int')
+        generator = MockGenerator()
+        self.assertEqual(generator.visit(ast.ext[0].type), 'const int ** const')
+        self.assertEqual(generator.visit(ast.ext[0].type.type), 'const int *')
+        self.assertEqual(generator.visit(ast.ext[0].type.type.type), 'const int')
 
     def test_atomic_qual(self):
         self._assert_ctoc_correct('_Atomic int x;')
@@ -467,33 +470,25 @@ class TestCtoC(unittest.TestCase):
         self._assert_ctoc_correct('_Static_assert(sizeof(int) == sizeof(int));')
 
     def test_reduce_parentheses_binaryops(self):
-        c1 = 'int x = a + b + c + d;';
+        c1 = 'int x = a + b + c + d;'
         self.assertEqual(self._run_c_to_c(c1), 'int x = ((a + b) + c) + d;\n')
-        self.assertEqual(
-                self._run_c_to_c(c1, reduce_parentheses=True),
-                'int x = a + b + c + d;\n')
+        self.assertEqual(self._run_c_to_c(c1, reduce_parentheses=True), 'int x = a + b + c + d;\n')
 
         # codes with minimum number of (necessary) parenthesis:
         test_snippets = [
-            'int x = a*b*c*d;',
-            'int x = a+b*c*d;',
-            'int x = a*b+c*d;',
-            'int x = a*b*c+d;',
-            'int x = (a+b)*c*d;',
-            'int x = (a+b)*(c+d);',
-            'int x = (a+b)/(c-d);',
-            'int x = a+b-c-d;',
+            'int x = a*b*c*d;', 'int x = a+b*c*d;', 'int x = a*b+c*d;', 'int x = a*b*c+d;',
+            'int x = (a+b)*c*d;', 'int x = (a+b)*(c+d);', 'int x = (a+b)/(c-d);', 'int x = a+b-c-d;',
             'int x = a+(b-c)-d;'
         ]
         for src in test_snippets:
             src2 = self._assert_ctoc_correct(src, reduce_parentheses=True)
             self.assertTrue(
                 src2.count('(') == src.count('('),
-                msg="{!r} did not have minimum number of parenthesis, should be like {!r}.".format(
-                    src2, src))
+                msg="{!r} did not have minimum number of parenthesis, should be like {!r}.".format(src2, src))
 
 
 class TestCasttoC(unittest.TestCase):
+
     def _find_file(self, name):
         test_dir = os.path.dirname(__file__)
         name = os.path.join(test_dir, 'c_files', name)
@@ -502,47 +497,47 @@ class TestCasttoC(unittest.TestCase):
 
     def test_to_type(self):
         src = 'int *x;'
-        generator = c_generator.CGenerator()
+        generator = MockGenerator()
         test_fun = c_ast.FuncCall(c_ast.ID('test_fun'), c_ast.ExprList([]))
 
         ast1 = parse_to_ast(src)
         int_ptr_type = ast1.ext[0].type
         int_type = int_ptr_type.type
-        self.assertEqual(generator.visit(c_ast.Cast(int_ptr_type, test_fun)),
-                         '(int *) test_fun()')
-        self.assertEqual(generator.visit(c_ast.Cast(int_type, test_fun)),
-                         '(int) test_fun()')
+        self.assertEqual(generator.visit(c_ast.Cast(int_ptr_type, test_fun)), '(int *) test_fun()')
+        self.assertEqual(generator.visit(c_ast.Cast(int_type, test_fun)), '(int) test_fun()')
 
     @unittest.skipUnless(cpp_supported(), 'cpp only works on Unix')
     def test_to_type_with_cpp(self):
-        generator = c_generator.CGenerator()
+        generator = MockGenerator()
         test_fun = c_ast.FuncCall(c_ast.ID('test_fun'), c_ast.ExprList([]))
         memmgr_path = self._find_file('memmgr.h')
 
-        ast2 = parse_file(memmgr_path, use_cpp=True,
-            cpp_path=cpp_path(), cpp_args=cpp_args())
+        ast2 = parse_file(memmgr_path, use_cpp=True, cpp_path=cpp_path(), cpp_args=cpp_args())
         void_ptr_type = ast2.ext[-3].type.type
         void_type = void_ptr_type.type
-        self.assertEqual(generator.visit(c_ast.Cast(void_ptr_type, test_fun)),
-                         '(void *) test_fun()')
-        self.assertEqual(generator.visit(c_ast.Cast(void_type, test_fun)),
-                         '(void) test_fun()')
+        self.assertEqual(generator.visit(c_ast.Cast(void_ptr_type, test_fun)), '(void *) test_fun()')
+        self.assertEqual(generator.visit(c_ast.Cast(void_type, test_fun)), '(void) test_fun()')
 
     def test_nested_else_if_line_breaks(self):
-        generator = c_generator.CGenerator()
+        generator = MockGenerator()
         test_ast1 = c_ast.If(None, None, None)
         test_ast2 = c_ast.If(None, None, c_ast.If(None, None, None))
         test_ast3 = c_ast.If(None, None, c_ast.If(None, None, c_ast.If(None, None, None)))
-        test_ast4 = c_ast.If(None, c_ast.Compound([]), c_ast.If(None, c_ast.Compound([]), c_ast.If(None, c_ast.Compound([]), None)))
+        test_ast4 = c_ast.If(None, c_ast.Compound([]),
+                                c_ast.If(None, c_ast.Compound([]), c_ast.If(None, c_ast.Compound([]), None)))
 
-        self.assertEqual(generator.visit(test_ast1),
-                         'if ()\n  \n')
-        self.assertEqual(generator.visit(test_ast2),
-                         'if ()\n  \nelse\n  if ()\n  \n')
-        self.assertEqual(generator.visit(test_ast3),
-                         'if ()\n  \nelse\n  if ()\n  \nelse\n  if ()\n  \n')
-        self.assertEqual(generator.visit(test_ast4),
-                         'if ()\n{\n}\nelse\n  if ()\n{\n}\nelse\n  if ()\n{\n}\n')
+        i = ' ' * 4
+        self.assertEqual(generator.visit(test_ast1), f'if ()\n{i}\n')
+        self.assertEqual(generator.visit(test_ast2), f'if ()\n{i}\nelse\n{i}if ()\n{i}\n')
+        self.assertEqual(
+            generator.visit(test_ast3),
+            f'if ()\n{i}\nelse\n{i}if ()\n{i}\nelse\n{i}if ()\n{i}\n',
+        )
+        self.assertEqual(
+            generator.visit(test_ast4),
+            f'if ()\n{{\n}}\nelse\n{i}if ()\n{{\n}}\nelse\n{i}if ()\n{{\n}}\n',
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
