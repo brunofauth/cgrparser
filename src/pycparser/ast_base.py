@@ -26,24 +26,22 @@ class Node(object):
     __slots__ = ()
     _eq_ignore = ()
     attr_names: tuple[str, ...] = ()
+    children_names: tuple[str, ...] = ()
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name[0] != '_':
             _types.setdefault(f"{self.__class__.__name__}.{name}", set()).add(type(value))
         super().__setattr__(name, value)
 
-    def _child_node_names(self) -> set[str]:
-        return set(self.__slots__[:-2]) - set(self.attr_names)
-
     def __iter__(self) -> Iterable[Node]:
-        for field in self._child_node_names():
+        for field in self.children_names:
             if isinstance(value := getattr(self, field), Sequence):
                 yield from value
             elif value is not None:
                 yield value
 
     def _children(self, skip_none: bool = True) -> Iterable[tuple[str, Any]]:
-        for field in self._child_node_names():
+        for field in self.children_names:
             if isinstance(value := getattr(self, field), Sequence):
                 yield from map(lambda x: (f"{field}[{x[0]}]", x[1]), enumerate(value))
             elif not skip_none or value is not None:

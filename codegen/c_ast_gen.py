@@ -71,6 +71,7 @@ class NodeCfg(object):
         self.attr = []
         self.child = []
         self.seq_child = []
+        self.all_kids = []
 
         for entry in contents:
             clean_entry = entry.rstrip('*')
@@ -78,17 +79,19 @@ class NodeCfg(object):
 
             if entry.endswith('**'):
                 self.seq_child.append(clean_entry)
+                self.all_kids.append(clean_entry)
             elif entry.endswith('*'):
                 self.child.append(clean_entry)
+                self.all_kids.append(clean_entry)
             else:
                 self.attr.append(entry)
 
     def generate_source(self):
-        return '\n\n'.join([
-            f"class {self.name}(Node):",
-            self._gen_init(),
-            self._gen_iter(),
+        return ''.join([
+            f"class {self.name}(Node):\n",
             self._gen_attr_names(),
+            self._gen_children_names(), '\n',
+            self._gen_init(), '\n',
         ])
 
     def _gen_init(self):
@@ -109,30 +112,15 @@ class NodeCfg(object):
 
         return "\n".join(src_lines)
 
-    def _gen_iter(self):
-        src_lines = ['    def __iter__(self):']
-
-        if len(self.all_entries) == 0:
-            # Empty generator
-            src_lines.append('        return\n        yield')
-            return '\n'.join(src_lines)
-
-        for child in self.child:
-            src_lines.append(f'        if self.{child} is not None: yield self.{child}')
-
-        for child in self.seq_child:
-            src_lines.append(f'        yield from (self.{child} or [])')
-
-        if not (self.child or self.seq_child):
-            # Empty generator
-            src_lines.append('        return\n        yield')
-
-        return '\n'.join(src_lines)
-
     def _gen_attr_names(self):
         if len(self.attr) == 0:
             return "    attr_names = ()\n"
         return f"    attr_names = ({', '.join(repr(name) for name in self.attr)},)\n"
+
+    def _gen_children_names(self):
+        if len(self.all_kids) == 0:
+            return "    children_names = ()\n"
+        return f"    children_names = ({', '.join(repr(name) for name in self.all_kids)},)\n"
 
 
 _PROLOGUE_COMMENT = \
