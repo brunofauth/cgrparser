@@ -720,7 +720,7 @@ class CParser(PLYParser):
 
     def p_statement_case_2(self, p):
         """ statement_case : fallthru_statement """
-        p[0] = [p[1]]
+        p[0] = p[1]
 
     def p_statement_case_3(self, p):
         """ statement_case : statement """

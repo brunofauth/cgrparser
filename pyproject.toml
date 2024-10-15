@@ -1,6 +1,6 @@
 [tool.poetry]
 name = 'pycparser'
-version = '2.25.1'
+version = '2.25.2'
 description = 'C to AST parser, written in Python'
 authors = ['Eli Bendersky <eliben@gmail.com>']
 license = 'BSD-3-Clause'

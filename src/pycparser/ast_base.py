@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import contextlib
 import typing
 import sys
 
@@ -40,6 +41,16 @@ class Node(object):
             elif value is not None:
                 yield value
 
+    @classmethod
+    @contextlib.contextmanager
+    def ctx_eq_ignore(cls, *attrs):
+        try:
+            old_value = cls._eq_ignore
+            cls._eq_ignore = attrs
+            yield
+        finally:
+            cls._eq_ignore = old_value
+
     def _children(self, skip_none: bool = True) -> Iterable[tuple[str, Any]]:
         for field in self.children_names:
             if isinstance(value := getattr(self, field), Sequence):
@@ -49,6 +60,10 @@ class Node(object):
 
     def children(self, skip_none: bool = True) -> tuple[tuple[str, Any], ...]:
         return tuple(self._children(skip_none=skip_none))
+
+    def children_proper(self) -> Iterable[tuple[str, Node | list[Node]]]:
+        for field in self.children_names:
+            yield (field, getattr(self, field))
 
     def __eq__(self, other: object) -> bool:
         if type(self) != type(other):

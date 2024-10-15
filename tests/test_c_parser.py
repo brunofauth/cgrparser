@@ -89,9 +89,10 @@ class MissingChild:
 
 
 def _assert_ast(field_stack: list[str], tree1: c_ast.Node, tree2: c_ast.Node) -> None:
+    if tree1 == ... or tree2 == ...:
+        return
     if (t1 := type(tree1)) != (t2 := type(tree2)):
         raise AstMismatchError.from_types(field_stack, t1, t2)
-
     for attr in t1.attr_names:
         if (a1 := getattr(tree1, attr)) == ...:
             continue
@@ -100,19 +101,30 @@ def _assert_ast(field_stack: list[str], tree1: c_ast.Node, tree2: c_ast.Node) ->
         if a1 != a2:
             raise AstMismatchError.from_attrs(field_stack, attr, a1, a2)
 
-    children = zip(tree1.children(skip_none=False), tree2.children(skip_none=False), strict=True)
+    children = zip(tree1.children_proper(), tree2.children_proper(), strict=True)
+    child1: Node | list[Node]
+    child2: Node | list[Node]
     for (name1, child1), (_, child2) in children:
         if child1 == ... or child2 == ...:
             continue
-        c1_is_node = isinstance(child1, Node)
-        c2_is_node = isinstance(child2, Node)
-        if c1_is_node ^ c2_is_node:
+        if type(child1) != type(child2):
             raise AstMismatchError.from_attrs(field_stack, name1, child1, child2)
-        if c1_is_node:
+        if isinstance(child1, Node):
             field_stack.append((name1, type(child1)))
             _assert_ast(field_stack, child1, child2)
             field_stack.pop()
             continue
+        if isinstance(child1, list):
+            field_stack.append((name1, list))
+            for i, (item1, item2) in enumerate(itertools.zip_longest(child1, child2, fillvalue=...)):
+                if item1 == ... or item2 == ...:
+                    continue
+                if (t1i := type(item1)) != (t2i := type(item2)):
+                    raise AstMismatchError.from_types(field_stack, t1i, t2i)
+                field_stack.append((f"[{i}]", type(item1)))
+                _assert_ast(field_stack, item1, item2)
+                field_stack.pop()
+            field_stack.pop()
         if child1 != child2:
             raise AstMismatchError.from_attrs(field_stack, name1, child1, child2)
 
@@ -2271,6 +2283,8 @@ class TestCParser_whole_code(TestCParser_base):
                     return 10;
                 case 20:
                     cgr_fallthru;
+                    break;
+                    break;
                 case 30:
                     return 20;
                 default:
@@ -2282,15 +2296,12 @@ class TestCParser_whole_code(TestCParser_base):
         ps1 = self.parse(s1)
         switch = ps1.ext[0].body.block_items[0]
 
-        block = switch.stmt.block_items
-        self.assertEqual(len(block), 4)
-        assert_case_node(block[0], '10')
-        self.assertEqual(len(block[0].stmts), 3)
-        assert_case_node(block[1], '20')
-        self.assertEqual(len(block[1].stmts), 1)
-        assert_case_node(block[2], '30')
-        self.assertEqual(len(block[2].stmts), 1)
-        assert_default_node(block[3])
+        assert_ast(switch.stmt, _dummy(Compound)(block_items=[
+            _dummy(Case)(expr=_dummy(Constant)(value='10')),
+            _dummy(Case)(expr=_dummy(Constant)(value='20'), stmts=[_dummy(CgrFallthrough)(), Break(), Break()]),
+            _dummy(Case)(expr=_dummy(Constant)(value='30')),
+            _dummy(Default)(),
+        ]))
 
         s2 = r'''
         int foo(void) {
@@ -2311,18 +2322,13 @@ class TestCParser_whole_code(TestCParser_base):
         ps2 = self.parse(s2)
         switch = ps2.ext[0].body.block_items[0]
 
-        block = switch.stmt.block_items
-        self.assertEqual(len(block), 5)
-        assert_default_node(block[0])
-        self.assertEqual(len(block[0].stmts), 2)
-        assert_case_node(block[1], '10')
-        self.assertEqual(len(block[1].stmts), 0)
-        assert_case_node(block[2], '20')
-        self.assertEqual(len(block[2].stmts), 1)
-        assert_case_node(block[3], '30')
-        self.assertEqual(len(block[3].stmts), 0)
-        assert_case_node(block[4], '40')
-        self.assertEqual(len(block[4].stmts), 1)
+        assert_ast(switch.stmt, _dummy(Compound)(block_items=[
+            _dummy(Default)(stmts=[_dummy(Assignment)(), Return(expr=Constant(type='int', value='10'))]),
+            _dummy(Case)(expr=_dummy(Constant)(value='10'), stmts=[]),
+            _dummy(Case)(expr=_dummy(Constant)(value='20'), stmts=[CgrFallthrough()]),
+            _dummy(Case)(expr=_dummy(Constant)(value='30'), stmts=[]),
+            _dummy(Case)(expr=_dummy(Constant)(value='40'), stmts=[Break()]),
+        ]))
 
         s3 = r'''
         int foo(void) {
@@ -2333,8 +2339,10 @@ class TestCParser_whole_code(TestCParser_base):
         '''
         ps3 = self.parse(s3)
         switch = ps3.ext[0].body.block_items[0]
+        assert_ast(switch.stmt, _dummy(Compound)(block_items=[]))
 
-        self.assertEqual(switch.stmt.block_items, [])
+        self.assertRaises(ParseError, self.parse, "int func(void) { switch(var) {cgr_fallthru;} }")
+        self.assertRaises(ParseError, self.parse, "int func(void) { cgr_fallthru; switch(var){} }")
 
     def test_for_statement(self):
         s2 = r'''
