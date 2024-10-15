@@ -13,7 +13,7 @@ from __future__ import annotations
 from .ply import yacc
 from . import c_ast
 from .c_lexer import CLexer
-from .model import DeclSpecifiers, FunctionSpecifierKind, StorageSpecifierKind, TypeQualifierSpecifierKind, InitDeclarator, StructDeclarator, PtrNullness, PtrIntent
+from .model import DeclSpecifiers, FunctionSpecifierKind, StorageSpecifierKind, TypeQualifierSpecifierKind, InitDeclarator, StructDeclarator, PtrNullness, PtrIntent, TypeSpecifier
 from .plyparser import PLYParser, ParseError, parameterized, template
 from .ast_transforms import fix_switch_cases, fix_atomic_specifiers
 
@@ -333,7 +333,6 @@ class CParser(PLYParser):
         bottom_type: c_ast.TypeDecl = _type # type: ignore
 
         decl.name = bottom_type.declname
-        assert isinstance(decl.quals, TypeQualifierSpecifierKind), f"{type(decl.quals)=}\n{decl=}" # TODO: remove this
         bottom_type.quals = decl.quals
 
         # The typename is a list of types. If any type in this
@@ -354,7 +353,7 @@ class CParser(PLYParser):
             #
             if not isinstance(decl.type, c_ast.FuncDecl):
                 self._parse_error("Missing type in declaration", decl.coord)
-            bottom_type.type = c_ast.IdentifierType(['int'], coord=decl.coord)
+            bottom_type.type = c_ast.IdentifierType([TypeSpecifier.INT], coord=decl.coord)
         else:
             # At this point, we know that typename is a list of IdentifierType
             # nodes. Concatenate all the names into a single list.
@@ -407,7 +406,7 @@ class CParser(PLYParser):
             decls[0].decl = c_ast.TypeDecl(
                 declname=_id.names[0],
                 type=None,
-                quals=None,
+                quals=TypeQualifierSpecifierKind.EMPTY,
                 align=decl_specifiers.alignment,
                 coord=_id.coord,
             )
@@ -632,7 +631,7 @@ class CParser(PLYParser):
         """
         # no declaration specifiers - 'int' becomes the default type
         spec = DeclSpecifiers(type=[
-            c_ast.IdentifierType(['int'], coord=self._token_coord(p, 1))
+            c_ast.IdentifierType([TypeSpecifier.INT], coord=self._token_coord(p, 1))
         ])
 
         p[0] = self._build_function_definition(spec=spec, decl=p[1], param_decls=p[2], body=p[3])
@@ -750,43 +749,41 @@ class CParser(PLYParser):
         declspecs = p[1]
 
         # p[2] (init_declarator_list_opt) is either a list or None
-        #
-        if p[2] is None:
-            # By the standard, you must have at least one declarator unless
-            # declaring a structure tag, a union tag, or the members of an
-            # enumeration.
-            #
-            ty = declspecs.type
-            s_u_or_e = (c_ast.Struct, c_ast.Union, c_ast.Enum)
-            if len(ty) == 1 and isinstance(ty[0], s_u_or_e):
-                decls = [c_ast.Decl(
-                    name=None,
-                    quals=declspecs.qualifiers,
-                    align=declspecs.alignment,
-                    storage=declspecs.storage,
-                    funcspec=declspecs.function,
-                    type=ty[0],
-                    init=None,
-                    bitsize=None,
-                    coord=ty[0].coord,
-                )]
-
-            # However, this case can also occur on redeclared identifiers in
-            # an inner scope.  The trouble is that the redeclared type's name
-            # gets grouped into declaration_specifiers; _build_declarations
-            # compensates for this.
-            #
-            else:
-                decls = self._build_declarations(
-                    decl_specifiers=declspecs,
-                    decls=[InitDeclarator()],
-                    typedef_namespace=True,
-                )
-
-        else:
+        if p[2] is not None:
             decls = self._build_declarations(
                 decl_specifiers=declspecs,
                 decls=p[2],
+                typedef_namespace=True,
+            )
+            p[0] = decls
+            return
+
+        # By the standard, you must have at least one declarator unless
+        # declaring a structure tag, a union tag, or the members of an
+        # enumeration.
+        ty = declspecs.type
+        s_u_or_e = (c_ast.Struct, c_ast.Union, c_ast.Enum)
+        if len(ty) == 1 and isinstance(ty[0], s_u_or_e):
+            decls = [c_ast.Decl(
+                name=None,
+                quals=declspecs.qualifiers,
+                align=declspecs.alignment,
+                storage=declspecs.storage,
+                funcspec=declspecs.function,
+                type=ty[0],
+                init=None,
+                bitsize=None,
+                coord=ty[0].coord,
+            )]
+
+        # However, this case can also occur on redeclared identifiers in
+        # an inner scope.  The trouble is that the redeclared type's name
+        # gets grouped into declaration_specifiers; _build_declarations
+        # compensates for this.
+        else:
+            decls = self._build_declarations(
+                decl_specifiers=declspecs,
+                decls=[InitDeclarator()],
                 typedef_namespace=True,
             )
 
@@ -924,21 +921,42 @@ class CParser(PLYParser):
         """ function_specifier  : _NORETURN """
         p[0] = FunctionSpecifierKind.NORETURN
 
-    def p_type_specifier_no_typeid(self, p):
-        """ type_specifier_no_typeid  : VOID
-                                      | _BOOL
-                                      | CHAR
-                                      | SHORT
-                                      | INT
-                                      | LONG
-                                      | FLOAT
-                                      | DOUBLE
-                                      | _COMPLEX
-                                      | SIGNED
-                                      | UNSIGNED
-                                      | __INT128
-        """
-        p[0] = c_ast.IdentifierType([p[1]], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_1(self, p):
+        """ type_specifier_no_typeid  : VOID     """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.VOID], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_2(self, p):
+        """ type_specifier_no_typeid  : _BOOL    """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.BOOL], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_3(self, p):
+        """ type_specifier_no_typeid  : CHAR     """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.CHAR], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_4(self, p):
+        """ type_specifier_no_typeid  : SHORT    """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.SHORT], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_5(self, p):
+        """ type_specifier_no_typeid  : INT      """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.INT], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_6(self, p):
+        """ type_specifier_no_typeid  : LONG     """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.LONG], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_7(self, p):
+        """ type_specifier_no_typeid  : FLOAT    """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.FLOAT], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_8(self, p):
+        """ type_specifier_no_typeid  : DOUBLE   """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.DOUBLE], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_9(self, p):
+        """ type_specifier_no_typeid  : _COMPLEX """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.COMPLEX], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_10(self, p):
+        """ type_specifier_no_typeid  : SIGNED   """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.SIGNED], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_11(self, p):
+        """ type_specifier_no_typeid  : UNSIGNED """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.UNSIGNED], coord=self._token_coord(p, 1))
+    def p_type_specifier_no_typeid_12(self, p):
+        """ type_specifier_no_typeid  : __INT128 """
+        p[0] = c_ast.IdentifierType([TypeSpecifier.INT128], coord=self._token_coord(p, 1))
 
     def p_type_specifier(self, p):
         """ type_specifier  : typedef_name
@@ -1237,7 +1255,13 @@ class CParser(PLYParser):
     def p_direct_xxx_declarator_1(self, p):
         """ direct_xxx_declarator   : yyy
         """
-        p[0] = c_ast.TypeDecl(declname=p[1], type=None, quals=None, align=None, coord=self._token_coord(p, 1))
+        p[0] = c_ast.TypeDecl(
+            declname=p[1],
+            type=None,
+            quals=TypeQualifierSpecifierKind.EMPTY,
+            align=None,
+            coord=self._token_coord(p, 1),
+        )
 
     @parameterized(('id', 'ID'), ('typeid', 'TYPEID'))
     def p_direct_xxx_declarator_2(self, p):
@@ -1557,7 +1581,10 @@ class CParser(PLYParser):
     def p_direct_abstract_declarator_3(self, p):
         """ direct_abstract_declarator  : LBRACKET type_qualifier_list_opt assignment_expression_opt RBRACKET
         """
+
+        # TODO: remove this assert
         assert len(p) == 5, "I guess this was necessaire: 'quals = (p[2] if len(p) > 4 else []) or []'"
+
         p[0] = c_ast.ArrayDecl(
             type=_dummy_typedecl(),
             dim=p[3] if len(p) > 4 else p[2],

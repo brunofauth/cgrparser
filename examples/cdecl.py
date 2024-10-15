@@ -61,15 +61,14 @@ def explain_c_declaration(c_decl, expand_struct=False, expand_typedef=False):
         e = sys.exc_info()[1]
         return "Parse error:" + str(e)
 
-    if (not isinstance(node, c_ast.FileAST) or
-        not isinstance(node.ext[-1], c_ast.Decl)
-        ):
+    if (not isinstance(node, c_ast.FileAST) or not isinstance(node.ext[-1], c_ast.Decl)):
         return "Not a valid declaration"
 
     try:
-        expanded = expand_struct_typedef(node.ext[-1], node,
-                                         expand_struct=expand_struct,
-                                         expand_typedef=expand_typedef)
+        expanded = expand_struct_typedef(node.ext[-1],
+                                            node,
+                                            expand_struct=expand_struct,
+                                            expand_typedef=expand_typedef)
     except Exception as e:
         return "Not a valid declaration: " + str(e)
 
@@ -82,10 +81,7 @@ def _explain_decl_node(decl_node):
     """
     storage = ' '.join(decl_node.storage) + ' ' if decl_node.storage else ''
 
-    return (decl_node.name +
-            " is a " +
-            storage +
-            _explain_type(decl_node.type))
+    return (decl_node.name + " is a " + storage + _explain_type(decl_node.type))
 
 
 def _explain_type(decl):
@@ -99,13 +95,14 @@ def _explain_type(decl):
     elif typ == c_ast.Typename or typ == c_ast.Decl:
         return _explain_type(decl.type)
     elif typ == c_ast.IdentifierType:
-        return ' '.join(decl.names)
+        return ' '.join(map(str, decl.names))
     elif typ == c_ast.PtrDecl:
         quals = ' '.join(decl.quals) + ' ' if decl.quals else ''
         return quals + 'pointer to ' + _explain_type(decl.type)
     elif typ == c_ast.ArrayDecl:
         arr = 'array'
-        if decl.dim: arr += '[%s]' % decl.dim.value
+        if decl.dim:
+            arr += '[%s]' % decl.dim.value
 
         return arr + " of " + _explain_type(decl.type)
 
@@ -116,8 +113,7 @@ def _explain_type(decl):
         else:
             args = ''
 
-        return ('function(%s) returning ' % (args) +
-                _explain_type(decl.type))
+        return ('function(%s) returning ' % (args) + _explain_type(decl.type))
 
     elif typ == c_ast.Struct:
         decls = [_explain_decl_node(mem_decl) for mem_decl in decl.decls]
@@ -127,9 +123,7 @@ def _explain_type(decl):
                 ('containing {%s}' % members if members else ''))
 
 
-def expand_struct_typedef(cdecl, file_ast,
-                          expand_struct=False,
-                          expand_typedef=False):
+def expand_struct_typedef(cdecl, file_ast, expand_struct=False, expand_typedef=False):
     """Expand struct & typedef and return a new expanded node."""
     decl_copy = copy.deepcopy(cdecl)
     _expand_in_place(decl_copy, file_ast, expand_struct, expand_typedef)
@@ -143,8 +137,7 @@ def _expand_in_place(decl, file_ast, expand_struct=False, expand_typedef=False):
     typ = type(decl)
 
     if typ in (c_ast.Decl, c_ast.TypeDecl, c_ast.PtrDecl, c_ast.ArrayDecl):
-        decl.type = _expand_in_place(decl.type, file_ast, expand_struct,
-                                     expand_typedef)
+        decl.type = _expand_in_place(decl.type, file_ast, expand_struct, expand_typedef)
 
     elif typ == c_ast.Struct:
         if not decl.decls:
@@ -154,13 +147,11 @@ def _expand_in_place(decl, file_ast, expand_struct=False, expand_typedef=False):
             decl.decls = struct.decls
 
         for i, mem_decl in enumerate(decl.decls):
-            decl.decls[i] = _expand_in_place(mem_decl, file_ast, expand_struct,
-                                             expand_typedef)
+            decl.decls[i] = _expand_in_place(mem_decl, file_ast, expand_struct, expand_typedef)
         if not expand_struct:
             decl.decls = []
 
-    elif (typ == c_ast.IdentifierType and
-          decl.names[0] not in ('int', 'char')):
+    elif (typ == c_ast.IdentifierType and decl.names[0] not in ('int', 'char')):
         typedef = _find_typedef(decl.names[0], file_ast)
         if not typedef:
             raise RuntimeError('using undeclared type %s' % decl.names[0])
@@ -175,9 +166,7 @@ def _find_struct(name, file_ast):
     """Receives a struct name and return declared struct object in file_ast
     """
     for node in file_ast.ext:
-        if (type(node) == c_ast.Decl and
-           type(node.type) == c_ast.Struct and
-           node.type.name == name):
+        if (type(node) == c_ast.Decl and type(node.type) == c_ast.Struct and node.type.name == name):
             return node.type
 
 
@@ -191,7 +180,7 @@ def _find_typedef(name, file_ast):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        c_decl  = sys.argv[1]
+        c_decl = sys.argv[1]
     else:
         c_decl = "char *(*(**foo[][8])())[];"
 

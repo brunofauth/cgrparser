@@ -162,10 +162,10 @@ class CGenerator(object):
 
     def visit_IdentifierType(self, n: c_ast.IdentifierType) -> None:
         for name in n.names[:-1]:
-            self.output_stream.write(name)
+            self.output_stream.write(str(name))
             self.output_stream.write(' ')
         if len(n.names) != 0:
-            self.output_stream.write(n.names[-1])
+            self.output_stream.write(str(n.names[-1]))
 
     def _visit_expr(self, n) -> None:
         if isinstance(n, c_ast.InitList):

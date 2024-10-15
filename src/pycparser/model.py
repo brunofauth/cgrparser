@@ -10,6 +10,44 @@ from .c_ast import IdentifierType, Enum, Struct, Union, Typename, Alignas, Node
 type TypeSpecifierKind = IdentifierType | Enum | Struct | Union | Typename
 
 @enum.unique
+class TypeSpecifier(enum.IntEnum):
+    VOID = 1
+    BOOL = enum.auto()
+    CHAR = enum.auto()
+    SHORT = enum.auto()
+    INT = enum.auto()
+    LONG = enum.auto()
+    FLOAT = enum.auto()
+    DOUBLE = enum.auto()
+    COMPLEX = enum.auto()
+    SIGNED = enum.auto()
+    UNSIGNED = enum.auto()
+    INT128 = enum.auto()
+
+    def __str__(self) -> str:
+        return self.__class__._str_table[self]
+
+# We use +1 here because this enum starts at 1
+_table = TypeSpecifier._str_table = [None for _ in range(len(TypeSpecifier) + 1)]
+_table[TypeSpecifier.VOID]     = "void"
+_table[TypeSpecifier.BOOL]     = "_Bool"
+_table[TypeSpecifier.CHAR]     = "char"
+_table[TypeSpecifier.SHORT]    = "short"
+_table[TypeSpecifier.INT]      = "int"
+_table[TypeSpecifier.LONG]     = "long"
+_table[TypeSpecifier.FLOAT]    = "float"
+_table[TypeSpecifier.DOUBLE]   = "double"
+_table[TypeSpecifier.COMPLEX]  = "_Complex"
+_table[TypeSpecifier.SIGNED]   = "signed"
+_table[TypeSpecifier.UNSIGNED] = "unsigned"
+_table[TypeSpecifier.INT128]   = "__int128"
+
+# Hence we have to take that +1 into account here
+assert _table.count(None) == 1, \
+    f"It looks like {TypeSpecifier.__name__!r} has grown, but its table hasn't been updated"
+
+
+@enum.unique
 class TypeQualifierSpecifierKind(enum.IntFlag):
     EMPTY = 0
     CONST = enum.auto()
@@ -86,10 +124,15 @@ class PtrNullness(enum.IntEnum):
     NOT_NULL = enum.auto()
 
     def __str__(self) -> str:
-        match self:
-            case PtrNullness.UNKNOWN: return ""
-            case PtrNullness.NULLABLE: return "cgr_nullable"
-            case PtrNullness.NOT_NULL: return "cgr_not_null"
+        return self.__class__._str_table[self]
+
+_table = PtrNullness._str_table = [None for _ in range(len(PtrNullness))]
+_table[PtrNullness.UNKNOWN]  = ""
+_table[PtrNullness.NULLABLE] = "cgr_nullable"
+_table[PtrNullness.NOT_NULL] = "cgr_not_null"
+assert _table.count(None) == 0, \
+    f"It looks like {PtrNullness.__name__!r} has grown, but its table hasn't been updated"
+
 
 @enum.unique
 class PtrIntent(enum.IntEnum):
@@ -99,9 +142,13 @@ class PtrIntent(enum.IntEnum):
     INOUT = enum.auto()
 
     def __str__(self) -> str:
-        match self:
-            case PtrIntent.UNKNOWN: return ""
-            case PtrIntent.IN: return "cgr_in"
-            case PtrIntent.OUT: return "cgr_out"
-            case PtrIntent.INOUT: return "cgr_inout"
+        return self.__class__._str_table[self]
+
+_table = PtrIntent._str_table = [None for _ in range(len(PtrIntent))]
+_table[PtrIntent.UNKNOWN] = ""
+_table[PtrIntent.IN]      = "cgr_in"
+_table[PtrIntent.OUT]     = "cgr_out"
+_table[PtrIntent.INOUT]   = "cgr_inout"
+assert _table.count(None) == 0, \
+    f"It looks like {PtrIntent.__name__!r} has grown, but its table hasn't been updated"
 
