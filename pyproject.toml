@@ -1,29 +1,29 @@
 # vim: foldmethod=marker foldlevel=0
 [tool.poetry]
-name = 'pycparser'
-version = '2.25.2'
-description = 'C to AST parser, written in Python'
-authors = ['Eli Bendersky <eliben@gmail.com>']
+name = 'cgrparser'
+version = '0.1.0'
+description = "A C99 parser with additional syntax, forked from Eli Bendersky's pycparser"
+authors = [
+    'Eli Bendersky <eliben@gmail.com>',
+    'Bruno Fauth <bvfauth@hotmail.com>'
+]
 license = 'BSD-3-Clause'
 readme = "README.rst"
-maintainers = ['Eli Bendersky <eliben@gmail.com>']
+maintainers = [
+    'Eli Bendersky <eliben@gmail.com>',
+    'Bruno Fauth <bvfauth@hotmail.com>'
+]
 classifiers  =  [
-    'Development Status :: 5 - Production/Stable',
     'License :: OSI Approved :: BSD License',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
 ]
 
 [tool.poetry.urls]
-"Homepage" = 'https://github.com/eliben/pycparser'
+"Homepage" = 'https://github.com/brunofauth/cgrparser'
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
 ptpython = "^3.0.29"
