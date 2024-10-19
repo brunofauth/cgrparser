@@ -2,25 +2,45 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import contextlib
+import dataclasses as dc
+import functools
+import io
 import typing
 import sys
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Iterable
-    from typing import Any
+    from collections.abc import Iterable, Callable
+    from typing import Any, Self, IO
+    type Visit[T] = Callable[[Node], Iterable[T]]
 
 
-def _repr(obj):
+_g_repr_level: int = 0
+REPR_INDENT: str = '    '
+
+
+def _repr(obj: Any, *, inline: bool = False) -> str:
     """
     Get the representation of an object, with dedicated pprint-like format for lists.
     """
-    if isinstance(obj, list):
-        return '[' + (',\n '.join((_repr(e).replace('\n', '\n ') for e in obj))) + '\n]'
-    else:
+    global _g_repr_level
+
+    if not isinstance(obj, list):
         return repr(obj)
 
+    if len(obj) == 0:
+        return '[]'
+    if len(obj) == 1:
+        return f'[{_repr(obj[0])}]'
 
-_types: dict[str, set[str]] = {}
+    with io.StringIO() as result:
+        write = functools.partial(print, sep='', file=result)
+        write('[')
+        _g_repr_level += 1
+        for item in obj:
+            write(REPR_INDENT * _g_repr_level, _repr(item), ',')
+        _g_repr_level -= 1
+        write(_g_repr_level * REPR_INDENT, ']' if inline else '],', end='' if inline else '\n')
+        return result.getvalue()
 
 
 class Node(object):
@@ -29,17 +49,13 @@ class Node(object):
     attr_names: tuple[str, ...] = ()
     children_names: tuple[str, ...] = ()
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name[0] != '_':
-            _types.setdefault(f"{self.__class__.__name__}.{name}", set()).add(type(value))
-        super().__setattr__(name, value)
-
-    def __iter__(self) -> Iterable[Node]:
+    def __iter__(self) -> Iterable[Self]:
         for field in self.children_names:
             if isinstance(value := getattr(self, field), Sequence):
                 yield from value
             elif value is not None:
                 yield value
+
 
     @classmethod
     @contextlib.contextmanager
@@ -51,6 +67,7 @@ class Node(object):
         finally:
             cls._eq_ignore = old_value
 
+
     def _children(self, skip_none: bool = True) -> Iterable[tuple[str, Any]]:
         for field in self.children_names:
             if isinstance(value := getattr(self, field), Sequence):
@@ -58,12 +75,15 @@ class Node(object):
             elif not skip_none or value is not None:
                 yield (field, value)
 
+
     def children(self, skip_none: bool = True) -> tuple[tuple[str, Any], ...]:
         return tuple(self._children(skip_none=skip_none))
+
 
     def children_proper(self) -> Iterable[tuple[str, Node | list[Node]]]:
         for field in self.children_names:
             yield (field, getattr(self, field))
+
 
     def __eq__(self, other: object) -> bool:
         if type(self) != type(other):
@@ -80,34 +100,42 @@ class Node(object):
                 return False
         return True
 
+
     def __repr__(self):
         """ Generates a python representation of the current node
         """
-        result = self.__class__.__name__ + '('
+        global _g_repr_level
 
-        indent = ''
-        separator = ''
-        name: str
-        for name in self.__slots__[:-2]:
-            result += separator
-            result += indent
-            result += name + '=' + (_repr(getattr(self, name)).replace(
-                '\n', '\n  ' + (' ' * (len(name) + len(self.__class__.__name__)))))
+        slots = self.__slots__[:-2]
+        if len(slots) == 0:
+            return f'{self.__class__.__name__}()'
 
-            separator = ','
-            indent = '\n ' + (' ' * len(self.__class__.__name__))
+        if len(slots) == 1:
+            val = _repr(getattr(self, slots[0]), inline=True)
+            return f'{self.__class__.__name__}({slots[0]}={val})'
 
-        result += indent + ')'
+        with io.StringIO() as result:
+            write = functools.partial(print, sep='', file=result)
+            write(self.__class__.__name__, '(')
 
-        return result
+            _g_repr_level += 1
+            for name in slots:
+                write(REPR_INDENT * _g_repr_level, name, '=', _repr(getattr(self, name)), ',')
+            _g_repr_level -= 1
 
-    def show(self,
-                buf=sys.stdout,
-                offset=0,
-                attrnames=False,
-                nodenames=False,
-                showcoord=False,
-                _my_node_name=None):
+            write(REPR_INDENT * _g_repr_level, ')', end='')
+            return result.getvalue()
+
+
+    def show(
+        self,
+        buf: IO[str] = sys.stdout,
+        offset: int = 0,
+        attrnames: bool = False,
+        nodenames: bool = False,
+        showcoord: bool = False,
+        _my_node_name=None,
+    ) -> None:
         """ Pretty print the Node and all its attributes and
             children (recursively) to a buffer.
 
@@ -149,12 +177,14 @@ class Node(object):
         buf.write('\n')
 
         for (child_name, child) in self.children():
-            child.show(buf,
-                        offset=offset + 2,
-                        attrnames=attrnames,
-                        nodenames=nodenames,
-                        showcoord=showcoord,
-                        _my_node_name=child_name)
+            child.show(
+                buf,
+                offset=offset + 2,
+                attrnames=attrnames,
+                nodenames=nodenames,
+                showcoord=showcoord,
+                _my_node_name=child_name,
+            )
 
 
 class NodeVisitor(object):
@@ -194,13 +224,12 @@ class NodeVisitor(object):
     _method_cache = None
 
     def visit(self, node):
-        """ Visit a node.
-        """
+        """ Visit a node. """
 
         if self._method_cache is None:
             self._method_cache = {}
 
-        visitor = self._method_cache.get(node.__class__.__name__, None)
+        visitor = self._method_cache.get(node.__class__.__name__)
         if visitor is None:
             method = 'visit_' + node.__class__.__name__
             visitor = getattr(self, method, self.generic_visit)
@@ -214,3 +243,58 @@ class NodeVisitor(object):
         """
         for c in node:
             self.visit(c)
+
+
+@dc.dataclass(slots=True, kw_only=True)
+class NodeVisitorIter[T]:
+    """ A base NodeVisitor class for visiting c_ast nodes.
+        Subclass it and define your own visit_XXX methods, where
+        XXX is the class name you want to visit with these
+        methods.
+
+        For example:
+
+        class ConstantVisitor(NodeVisitorIter):
+            def __init__(self):
+                self.values = []
+
+            def visit_Constant(self, node):
+                self.values.append(node.value)
+                yield blablabla
+
+        Creates a list of values of all the constant nodes
+        encountered below the given node. To use it:
+
+        cv = ConstantVisitor()
+        cv.visit(node)
+
+        Notes:
+
+        * generic_visit() will be called for nodes for which
+          no visit_XXX method was defined.
+        * The children of nodes for which a visit_XXX was
+          defined will not be visited - if you need this, call
+          generic_visit() on the node. You can use:
+              NodeVisitor.generic_visit(self, node)
+        * Modeled after Python's own 'ast' module
+    """
+
+    _method_cache: dict[str, Visit[T]] = dc.field(default_factory=dict)
+
+    def visit(self, node: Node) -> Iterable[T]:
+        """ Visit a node. """
+
+        visitor: Visit[T] | None = self._method_cache.get(node.__class__.__name__)
+        if visitor is None:
+            method = 'visit_' + node.__class__.__name__
+            visitor = getattr(self, method, self.generic_visit)
+            self._method_cache[node.__class__.__name__] = visitor
+
+        yield from visitor(node)
+
+    def generic_visit(self, node: Node) -> Iterable[T]:
+        """ Called if no explicit visitor function exists for a
+            node. Implements preorder visiting of the node.
+        """
+        for c in node:
+            yield from self.visit(c)

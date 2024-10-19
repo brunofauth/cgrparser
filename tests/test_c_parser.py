@@ -2715,18 +2715,16 @@ def main() -> None:
     unittest.main()
 
 
-import atexit
-from pycparser.ast_base import _types
-from pprint import pprint
-
-# atexit.register(pprint, _types)
-
-def print_types():
-    for field_name, types in _types.items():
-        for type_ in types:
-            print(field_name, type_)
-
-atexit.register(print_types)
+# import atexit
+# from pycparser.ast_base import _types
+# from pprint import pprint
+# 
+# def print_types():
+#     for field_name, types in _types.items():
+#         for type_ in types:
+#             print(field_name, type_)
+# 
+# atexit.register(print_types)
 
 
 if __name__ == '__main__':
