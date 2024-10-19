@@ -73,3 +73,19 @@ exclude = [
 enable_incomplete_feature = [
     "NewGenericSyntax",
 ]
+
+# https://github.com/google/yapf
+[tool.yapf]
+based_on_style = 'google'
+coalesce_brackets = true
+column_limit = 110
+# continuation_align_style = "fixed"
+continuation_align_style = "valign-right"
+# continuation_align_style = "space"
+dedent_closing_brackets = false
+indent_closing_brackets = false
+join_multiple_lines = false
+spaces_before_comment = 3
+split_arguments_when_comma_terminated = true
+split_penalty_after_unary_operator = 9999999
+blank_line_before_nested_class_or_def = false
