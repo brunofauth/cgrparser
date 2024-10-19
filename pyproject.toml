@@ -1,3 +1,4 @@
+# vim: foldmethod=marker foldlevel=0
 [tool.poetry]
 name = 'pycparser'
 version = '2.25.2'
@@ -33,6 +34,7 @@ poethepoet = "^0.29.0"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+# Poe {{{
 [tool.poe.poetry_hooks]
 pre_build = "build-tables"
 pre_install = "build-tables"
@@ -61,7 +63,9 @@ shell = '''
     mypy src/
 '''
 help = "Run mypy on codebase"
+# }}}
 
+# mypy {{{
 [tool.mypy]
 warn_unused_ignores = true
 warn_unreachable = true
@@ -73,8 +77,9 @@ exclude = [
 enable_incomplete_feature = [
     "NewGenericSyntax",
 ]
+# }}}
 
-# https://github.com/google/yapf
+# yapf {{{
 [tool.yapf]
 based_on_style = 'google'
 coalesce_brackets = true
@@ -89,3 +94,17 @@ spaces_before_comment = 3
 split_arguments_when_comma_terminated = true
 split_penalty_after_unary_operator = 9999999
 blank_line_before_nested_class_or_def = false
+# }}}
+
+# ruff {{{
+[tool.ruff]
+indent-width = 4
+line-length = 110
+respect-gitignore = true
+
+[tool.ruff.format]
+indent-style = "space"
+line-ending = 'lf'
+quote-style = "preserve"
+skip-magic-trailing-comma = false
+# }}}
