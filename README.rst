@@ -18,6 +18,26 @@ pycparser v2.22
 Introduction
 ============
 
+About this fork
+---------------
+
+**cgrparser** is a fork from Eli Bendersky's
+[pycparser](https://github.com/elibendersky/pycparser), which is a pure-python
+implementation of a C99 parser, implemented with
+[PLY](http://www.dabeaz.com/ply/ply.html). I created this fork to extend said
+parser, to support additional syntax features, which are checked by my other
+project [cguardrails](https://github.com/brunofauth/cguardrails). Hence, **this
+fork adds support for parsing:**
+
+- `cgr_fallthru` statements inside `case` labels (and only there)
+- `cgr_nullable` and `cgr_not_null` qualifiers inside pointer declarations 
+  (right after the star `*`, before other qualifiers, such as `const`)
+- `cgr_in`, `cgr_out` and `cgr_inout` right before pointer declarations inside 
+  function signatures, and only inside function signatures (should they be 
+  declarations or definitions). 
+
+The rest of this README.rst come straight from the upstream source.
+
 What is pycparser?
 ------------------
 
