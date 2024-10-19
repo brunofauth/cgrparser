@@ -72,7 +72,7 @@ warn_unreachable = true
 exclude = [
     'yacctab\.py$',
     'lextab\.py$',
-    '^src/pycparser/ply',
+    '^src/cgrparser/ply',
 ]
 enable_incomplete_feature = [
     "NewGenericSyntax",

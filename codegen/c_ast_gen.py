@@ -133,7 +133,7 @@ r'''#-----------------------------------------------------------------
 # run the generator again.
 # ** ** *** ** **
 #
-# pycparser: c_ast.py
+# cgrparser: c_ast.py
 #
 # AST Node classes.
 #

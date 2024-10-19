@@ -12,10 +12,10 @@ import typing
 
 sys.path[0:0] = ['.', '..']
 
-from pycparser import c_parser
-from pycparser.c_ast import *
-from pycparser.c_parser import ParseError
-from pycparser.model import TypeQualifierSpecifierKind as Tqsk, StorageSpecifierKind as Ssk, FunctionSpecifierKind as Fsk, PtrIntent, PtrNullness, TypeSpecifier as Ts
+from cgrparser import c_parser
+from cgrparser.c_ast import *
+from cgrparser.c_parser import ParseError
+from cgrparser.model import TypeQualifierSpecifierKind as Tqsk, StorageSpecifierKind as Ssk, FunctionSpecifierKind as Fsk, PtrIntent, PtrNullness, TypeSpecifier as Ts
 
 if typing.TYPE_CHECKING:
     from typing import Self, Any
@@ -1930,7 +1930,7 @@ class TestCParser_fundamentals(TestCParser_base):
 
         # This is not correct based on the the C spec, but testing it here to
         # see the behavior in action. Will have to fix this
-        # for https://github.com/eliben/pycparser/issues/392
+        # for https://github.com/eliben/cgrparser/issues/392
         #
         # The spec says in section 6.4.5 that "escape sequences are converted
         # into single members of the execution character set just prior to
@@ -2395,7 +2395,7 @@ class TestCParser_whole_code(TestCParser_base):
         return io.open(name)
 
     def test_whole_file(self):
-        # See how pycparser handles a whole, real C file.
+        # See how cgrparser handles a whole, real C file.
         #
         with self._open_c_file('memmgr_with_h.c') as f:
             code = f.read()
@@ -2716,7 +2716,7 @@ def main() -> None:
 
 
 # import atexit
-# from pycparser.ast_base import _types
+# from cgrparser.ast_base import _types
 # from pprint import pprint
 # 
 # def print_types():

@@ -3,7 +3,7 @@ import sys
 import unittest
 
 sys.path.insert(0, '..')
-from pycparser.c_lexer import CLexer
+from cgrparser.c_lexer import CLexer
 
 
 # yapf: disable

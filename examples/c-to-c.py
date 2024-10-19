@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
-# pycparser: c-to-c.py
+# cgrparser: c-to-c.py
 #
-# Example of using pycparser.c_generator, serving as a simplistic translator
+# Example of using cgrparser.c_generator, serving as a simplistic translator
 # from C to AST and back to C.
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
@@ -9,11 +9,11 @@
 #------------------------------------------------------------------------------
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 sys.path.extend(['.', '..'])
 
-from pycparser import parse_file, c_generator
+from cgrparser import parse_file, c_generator
 
 
 def translate_to_c(filename):

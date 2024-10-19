@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------
-# pycparser: construct_ast_from_scratch.py
+# cgrparser: construct_ast_from_scratch.py
 #
 # Tiny example of writing an AST from scratch to C code.
 #
@@ -8,11 +8,11 @@
 # -----------------------------------------------------------------
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 sys.path.extend(['.', '..'])
 
-from pycparser import c_ast, c_generator
+from cgrparser import c_ast, c_generator
 
 
 def empty_main_function_ast():

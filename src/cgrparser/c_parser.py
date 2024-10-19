@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# pycparser: c_parser.py
+# cgrparser: c_parser.py
 #
 # CParser class: Parser and AST builder for the C language
 #
@@ -46,9 +46,9 @@ class CParser(PLYParser):
         self,
         lex_optimize: bool = True,
         lexer: type[CLexer] = CLexer,
-        lextab: str = 'pycparser.lextab',
+        lextab: str = 'cgrparser.lextab',
         yacc_optimize: bool = True,
-        yacctab: str = 'pycparser.yacctab',
+        yacctab: str = 'cgrparser.yacctab',
         yacc_debug: bool = False,
         taboutputdir: str = '',
     ) -> None:
@@ -672,7 +672,7 @@ class CParser(PLYParser):
     #       sum += 1;
     #
     # This code will compile and execute "sum += 1;" as the body of the for
-    # loop. Previous implementations of PyCParser would render the AST for this
+    # loop. Previous implementations of cgrparser would render the AST for this
     # block of code as follows:
     #
     #   For:
@@ -1110,7 +1110,7 @@ class CParser(PLYParser):
             # Anonymous struct/union, gcc extension, C1x feature.
             # Although the standard only allows structs/unions here, I see no
             # reason to disallow other types since some compilers have typedefs
-            # here, and pycparser isn't about rejecting all invalid code.
+            # here, and cgrparser isn't about rejecting all invalid code.
             #
             node = declspecs.type[0]
             if isinstance(node, c_ast.Node):
@@ -1287,7 +1287,7 @@ class CParser(PLYParser):
                                     | direct_xxx_declarator LBRACKET type_qualifier_list STATIC assignment_expression RBRACKET
         """
         # Using slice notation for PLY objects doesn't work in Python 3 for the
-        # version of PLY embedded with pycparser; see PLY Google Code issue 30.
+        # version of PLY embedded with cgrparser; see PLY Google Code issue 30.
         # Work around that here by listing the two elements separately.
         if isinstance(p[3], TypeQualifierSpecifierKind):
             quals = p[3]

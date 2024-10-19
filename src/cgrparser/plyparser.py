@@ -52,7 +52,6 @@ class ParseError(Exception):
 
 
 class PLYParser(object):
-
     def _create_opt_rule(self, rulename):
         """ Given a rule name, creates an optional ply.yacc rule
             for it. The name of the optional rule is
@@ -95,7 +94,6 @@ def parameterized(*params):
     ``@parameterized(('id', 'ID'))`` produces ``p_id_rule()`` with the docstring
     'id_rule  : ID'. Using multiple tuples produces multiple rules.
     """
-
     def decorate(rule_func):
         rule_func._params = params
         return rule_func
@@ -117,7 +115,7 @@ def template(cls):
                 delattr(cls, attr_name)
                 # Create parameterized rules from this method; only run this if
                 # the method has a docstring. This is to address an issue when
-                # pycparser's users are installed in -OO mode which strips
+                # cgrparser's users are installed in -OO mode which strips
                 # docstrings away.
                 # See: https://github.com/eliben/pycparser/pull/198/ and
                 #      https://github.com/eliben/pycparser/issues/197
@@ -125,7 +123,7 @@ def template(cls):
                 if method.__doc__ is not None:
                     _create_param_rules(cls, method)
                 elif not issued_nodoc_warning:
-                    warnings.warn('parsing methods must have __doc__ for pycparser to work properly',
+                    warnings.warn('parsing methods must have __doc__ for cgrparser to work properly',
                                     RuntimeWarning,
                                     stacklevel=2)
                     issued_nodoc_warning = True

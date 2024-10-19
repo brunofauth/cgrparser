@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------
-# pycparser: dump_ast.py
+# cgrparser: dump_ast.py
 #
 # Basic example of parsing a file and dumping its parsed AST.
 #
@@ -9,11 +9,11 @@
 import argparse
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 sys.path.extend(['.', '..'])
 
-from pycparser import parse_file
+from cgrparser import parse_file
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser('Dump AST')

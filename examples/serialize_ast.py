@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------
-# pycparser: serialize_ast.py
+# cgrparser: serialize_ast.py
 #
 # Simple example of serializing AST
 #
@@ -11,7 +11,7 @@ import pickle
 import sys
 
 sys.path.extend(['.', '..'])
-from pycparser import c_parser
+from cgrparser import c_parser
 
 text = r"""
 void func(void)

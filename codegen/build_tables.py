@@ -1,10 +1,10 @@
 #-----------------------------------------------------------------
-# pycparser: _build_tables.py
+# cgrparser: _build_tables.py
 #
 # A dummy for generating the lexing/parsing tables and and
 # compiling them into .pyc for faster execution in optimized mode.
 # Also generates AST code from the configuration file.
-# Should be called from the pycparser directory.
+# Should be called from the cgrparser directory.
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
@@ -24,7 +24,7 @@ if typing.TYPE_CHECKING:
     from types import ModuleType
 
 REPO_ROOT: Path = Path(__file__).parent.parent
-PYCPARSER_ROOT: Path = REPO_ROOT / 'src/pycparser'
+CGRPARSER_ROOT: Path = REPO_ROOT / 'src/cgrparser'
 
 
 def import_from_fp(module_name: str, module_fp: Path) -> ModuleType:
@@ -38,22 +38,22 @@ def import_from_fp(module_name: str, module_fp: Path) -> ModuleType:
 if __name__ == "__main__":
     generate_ast_code(
         cfg_fp=REPO_ROOT / 'codegen/c_ast.cfg',
-        out_fp=PYCPARSER_ROOT / 'c_ast.py',
+        out_fp=CGRPARSER_ROOT / 'c_ast.py',
     )
 
-    pycparser = import_from_fp("pycparser", PYCPARSER_ROOT / "__init__.py")
+    cgrparser = import_from_fp("cgrparser", CGRPARSER_ROOT / "__init__.py")
     # Generates the tables
-    pycparser.c_parser.CParser(
+    cgrparser.c_parser.CParser(
         lex_optimize=True,
-        lextab='pycparser.lextab',
+        lextab='cgrparser.lextab',
         yacc_optimize=True,
-        yacctab='pycparser.yacctab',
+        yacctab='cgrparser.yacctab',
         yacc_debug=False,
-        taboutputdir=PYCPARSER_ROOT,
+        taboutputdir=CGRPARSER_ROOT,
     )
 
     # (re)build cache for generated optimized files
     cleanup("..", targetfiles=[])
-    import_from_fp("pycparser.lextab", PYCPARSER_ROOT / "lextab.py")
-    import_from_fp("pycparser.yacctab", PYCPARSER_ROOT / "yacctab.py")
-    import_from_fp("pycparser.c_ast", PYCPARSER_ROOT / "c_ast.py")
+    import_from_fp("cgrparser.lextab", CGRPARSER_ROOT / "lextab.py")
+    import_from_fp("cgrparser.yacctab", CGRPARSER_ROOT / "yacctab.py")
+    import_from_fp("cgrparser.c_ast", CGRPARSER_ROOT / "c_ast.py")

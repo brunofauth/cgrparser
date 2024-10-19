@@ -17,4 +17,4 @@ utils/z.c
 *.swp
 .DS_Store
 ast.pickle
-/src/pycparser/c_ast.py
+/src/cgrparser/c_ast.py

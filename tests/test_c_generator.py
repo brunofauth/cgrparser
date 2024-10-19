@@ -8,14 +8,13 @@ import textwrap
 # Run from the root dir
 sys.path.insert(0, '.')
 
-from pycparser import c_parser, c_generator, c_ast, parse_file
+from cgrparser import c_parser, c_generator, c_ast, parse_file
 from tests.test_util import cpp_supported, cpp_path, cpp_args
 
 _c_parser = c_parser.CParser(lex_optimize=False, yacc_debug=True, yacc_optimize=False, yacctab='yacctab')
 
 
 class MockGenerator:
-
     def __init__(self, *args, **kwargs) -> None:
         self._generator = c_generator.CGenerator(*args, **kwargs, output_stream=io.StringIO())
 
@@ -67,9 +66,7 @@ def parse_to_ast(src):
 
 
 class TestFunctionDeclGeneration(unittest.TestCase):
-
     class _FuncDeclVisitor(c_ast.NodeVisitor):
-
         def __init__(self):
             self.stubs = []
 
@@ -92,7 +89,6 @@ class TestFunctionDeclGeneration(unittest.TestCase):
 
 
 class TestCtoC(unittest.TestCase):
-
     def _run_c_to_c(self, src, *args, **kwargs):
         ast = parse_to_ast(src)
         generator = MockGenerator(*args, **kwargs)
@@ -436,7 +432,7 @@ class TestCtoC(unittest.TestCase):
         self._assert_ctoc_correct(s3)
 
         # TODO: Regeneration with multiple qualifiers is not fully supported.
-        # REF: https://github.com/eliben/pycparser/issues/433
+        # REF: https://github.com/eliben/cgrparser/issues/433
         # self._assert_ctoc_correct('auto const _Atomic(int *) a;')
 
         s4 = 'typedef _Atomic(int) atomic_int;'
@@ -488,7 +484,6 @@ class TestCtoC(unittest.TestCase):
 
 
 class TestCasttoC(unittest.TestCase):
-
     def _find_file(self, name):
         test_dir = os.path.dirname(__file__)
         name = os.path.join(test_dir, 'c_files', name)

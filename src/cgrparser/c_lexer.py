@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# pycparser: c_lexer.py
+# cgrparser: c_lexer.py
 #
 # CLexer class: lexer for the C language
 #

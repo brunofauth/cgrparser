@@ -1,8 +1,8 @@
 #-----------------------------------------------------------------
-# pycparser: __init__.py
+# cgrparser: __init__.py
 #
 # This package file exports some convenience functions for
-# interacting with pycparser
+# interacting with cgrparser
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
@@ -41,16 +41,14 @@ def preprocess_file(filename, cpp_path='cpp', cpp_args=''):
         # as \n for Python's purpose
         text = check_output(path_list, universal_newlines=True)
     except OSError as e:
-        raise RuntimeError("Unable to invoke 'cpp'.  " +
-            'Make sure its path was passed correctly\n' +
-            ('Original error: %s' % e))
+        raise RuntimeError("Unable to invoke 'cpp'.  " + 'Make sure its path was passed correctly\n' +
+                            ('Original error: %s' % e))
 
     return text
 
 
-def parse_file(filename, use_cpp=False, cpp_path='cpp', cpp_args='',
-               parser=None, encoding=None):
-    """ Parse a C file using pycparser.
+def parse_file(filename, use_cpp=False, cpp_path='cpp', cpp_args='', parser=None, encoding=None):
+    """ Parse a C file using cgrparser.
 
         filename:
             Name of the file you want to parse.

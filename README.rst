@@ -22,7 +22,7 @@ About this fork
 ---------------
 
 **cgrparser** is a fork from Eli Bendersky's
-[pycparser](https://github.com/elibendersky/pycparser), which is a pure-python
+[pycparser](https://github.com/eliben/pycparser), which is a pure-python
 implementation of a C99 parser, implemented with
 [PLY](http://www.dabeaz.com/ply/ply.html). I created this fork to extend said
 parser, to support additional syntax features, which are checked by my other

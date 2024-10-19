@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------
-# pycparser: c_generator.py
+# cgrparser: c_generator.py
 #
-# C code generator from pycparser AST nodes.
+# C code generator from cgrparser AST nodes.
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD

@@ -4,8 +4,8 @@ import unittest
 import weakref
 
 sys.path.insert(0, '..')
-import pycparser.c_ast as c_ast
-import pycparser.plyparser as plyparser
+import cgrparser.c_ast as c_ast
+import cgrparser.plyparser as plyparser
 
 
 class Test_c_ast(unittest.TestCase):

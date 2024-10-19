@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------
-# pycparser: using_cpp_libc.py
+# cgrparser: using_cpp_libc.py
 #
 # Shows how to use the provided 'cpp' (on Windows, substitute for
 # the 'real' cpp if you're on Linux/Unix) and "fake" libc includes
@@ -10,12 +10,12 @@
 #-----------------------------------------------------------------
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 #
 sys.path.extend(['.', '..'])
 
-from pycparser import parse_file
+from cgrparser import parse_file
 
 
 if __name__ == "__main__":

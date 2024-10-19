@@ -1,7 +1,7 @@
 #-----------------------------------------------------------------
-# pycparser: func_calls.py
+# cgrparser: func_calls.py
 #
-# Using pycparser for printing out all the calls of some function
+# Using cgrparser for printing out all the calls of some function
 # in a C file.
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
@@ -9,11 +9,11 @@
 #-----------------------------------------------------------------
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 sys.path.extend(['.', '..'])
 
-from pycparser import c_ast, parse_file
+from cgrparser import c_ast, parse_file
 
 # A visitor with some state information (the funcname it's looking for)
 class FuncCallVisitor(c_ast.NodeVisitor):

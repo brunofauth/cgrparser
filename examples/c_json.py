@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# pycparser: c_json.py
+# cgrparser: c_json.py
 #
 # by Michael White (@mypalmike)
 #
@@ -38,13 +38,13 @@ import json
 import sys
 import re
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 #
 sys.path.extend(['.', '..'])
 
-from pycparser import parse_file, c_ast
-from pycparser.plyparser import Coord
+from cgrparser import parse_file, c_ast
+from cgrparser.plyparser import Coord
 
 
 RE_CHILD_ARRAY = re.compile(r'(.*)\[(.*)\]')

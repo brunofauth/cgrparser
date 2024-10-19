@@ -1,27 +1,27 @@
 #-----------------------------------------------------------------
-# pycparser: explore_ast.py
+# cgrparser: explore_ast.py
 #
 # This example demonstrates how to "explore" the AST created by
-# pycparser to understand its structure. The AST is a n-nary tree
+# cgrparser to understand its structure. The AST is a n-nary tree
 # of nodes, each node having several children, each with a name.
 # Just read the code, and let the comments guide you. The lines
 # beginning with #~ can be uncommented to print out useful
 # information from the AST.
-# It helps to have the pycparser/_c_ast.cfg file in front of you.
+# It helps to have the cgrparser/_c_ast.cfg file in front of you.
 #
 # Eli Bendersky [https://eli.thegreenplace.net/]
 # License: BSD
 #-----------------------------------------------------------------
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 #
 sys.path.extend(['.', '..'])
 
-from pycparser import c_parser
+from cgrparser import c_parser
 
-# This is some C source to parse. Note that pycparser must begin
+# This is some C source to parse. Note that cgrparser must begin
 # at the top level of the C file, i.e. with either declarations
 # or function definitions (this is called "external declarations"
 # in C grammar lingo)
@@ -63,7 +63,7 @@ ast = parser.parse(text, filename='<none>')
 
 # Uncomment the following line to see the AST in a nice, human
 # readable way. show() is the most useful tool in exploring ASTs
-# created by pycparser. See the c_ast.py file for the options you
+# created by cgrparser. See the c_ast.py file for the options you
 # can pass it.
 
 #ast.show(showcoord=True)
@@ -149,7 +149,7 @@ while_cond = while_stmt.cond
 
 
 # That's it for the example. I hope you now see how easy it is to explore the
-# AST created by pycparser. Although on the surface it is quite complex and has
+# AST created by cgrparser. Although on the surface it is quite complex and has
 # a lot of node types, this is the inherent complexity of the C language every
 # parser/compiler designer has to cope with.
 # Using the tools provided by the c_ast package it's easy to explore the

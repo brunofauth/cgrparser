@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------------
-# pycparser: using_gcc_E_libc.py
+# cgrparser: using_gcc_E_libc.py
 #
 # Similar to the using_cpp_libc.py example, but uses 'gcc -E' instead
 # of 'cpp'. The same can be achieved with Clang instead of gcc. If you have
@@ -10,12 +10,12 @@
 #-------------------------------------------------------------------------------
 import sys
 
-# This is not required if you've installed pycparser into
+# This is not required if you've installed cgrparser into
 # your site-packages/ with setup.py
 #
 sys.path.extend(['.', '..'])
 
-from pycparser import parse_file
+from cgrparser import parse_file
 
 
 if __name__ == "__main__":

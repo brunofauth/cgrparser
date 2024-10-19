@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# pycparser: ast_transforms.py
+# cgrparser: ast_transforms.py
 #
 # Some utilities used by the parser to create a friendlier AST.
 #

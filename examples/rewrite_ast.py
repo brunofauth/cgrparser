@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------
-# pycparser: rewrite_ast.py
+# cgrparser: rewrite_ast.py
 #
 # Tiny example of rewriting a AST node
 #
@@ -9,7 +9,7 @@
 import sys
 
 sys.path.extend(['.', '..'])
-from pycparser import c_parser
+from cgrparser import c_parser
 
 text = r"""
 void func(void)

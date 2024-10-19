@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------
-# pycparser: func_defs_add_param.py
+# cgrparser: func_defs_add_param.py
 #
 # Example of rewriting AST nodes to add parameters to function
 # definitions. Adds an "int _hidden" to every function.
@@ -11,7 +11,7 @@ import sys
 
 sys.path.extend(['.', '..'])
 
-from pycparser import c_parser, c_ast, c_generator
+from cgrparser import c_parser, c_ast, c_generator
 
 text = r"""
 void foo(int a, int b) {
