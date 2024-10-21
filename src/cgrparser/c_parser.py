@@ -1671,7 +1671,10 @@ class CParser(PLYParser):
 
     def p_compound_statement_1(self, p):
         """ compound_statement : brace_open block_item_list_opt brace_close """
-        p[0] = c_ast.Compound(block_items=p[2], coord=self._token_coord(p, 1))
+        items = [] if p[2] is None else p[2]
+        if not isinstance(items, list):
+            raise ValueError('items aint no list')
+        p[0] = c_ast.Compound(block_items=items, coord=self._token_coord(p, 1))
 
     def p_labeled_statement_1(self, p):
         """ labeled_statement : ID COLON pragmacomp_or_statement """

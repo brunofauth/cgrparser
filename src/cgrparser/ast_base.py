@@ -18,6 +18,22 @@ _g_repr_level: int = 0
 REPR_INDENT: str = '    '
 
 
+@functools.cache
+def dummy_node[**P, T: type[Node]](node_type: type[Node]) -> Callable[P, T]:
+    """Returns an alternative constructor for a Node type, in which all
+    parameters default to '...', to produce 'dummy' types, useful when
+    comparing/debugging AST structures."""
+
+    default_args: dict[str, ellipsis] = {slot: ... for slot in node_type.__slots__}
+    del default_args["coord"]
+    del default_args["__weakref__"]
+
+    @functools.wraps(node_type)
+    def _ctor(**kwargs) -> T:
+        return node_type(**{**default_args, **kwargs})
+    return _ctor
+
+
 def _repr(obj: Any, *, inline: bool = False) -> str:
     """
     Get the representation of an object, with dedicated pprint-like format for lists.

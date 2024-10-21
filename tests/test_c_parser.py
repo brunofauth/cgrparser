@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import functools
 import itertools
 import os, sys
 import io
@@ -16,6 +15,7 @@ from cgrparser import c_parser
 from cgrparser.c_ast import *
 from cgrparser.c_parser import ParseError
 from cgrparser.model import TypeQualifierSpecifierKind as Tqsk, StorageSpecifierKind as Ssk, FunctionSpecifierKind as Fsk, PtrIntent, PtrNullness, TypeSpecifier as Ts
+from cgrparser.ast_base import dummy_node as _dummy
 
 if typing.TYPE_CHECKING:
     from typing import Self, Any
@@ -27,22 +27,6 @@ _c_parser = c_parser.CParser(
     yacc_optimize=False,
     yacctab='yacctab',
 )
-
-
-@functools.cache
-def _dummy[**P, T: type[Node]](node_type: type[Node]) -> Callable[P, T]:
-    """Returns an alternative constructor for a Node type, in which all
-    parameters default to '...', to produce 'dummy' types, useful when
-    comparing AST structures."""
-
-    default_args = {slot: ... for slot in node_type.__slots__}
-    del default_args["coord"]
-    del default_args["__weakref__"]
-
-    @functools.wraps(node_type)
-    def _ctor(**kwargs) -> T:
-        return node_type(**{**default_args, **kwargs})
-    return _ctor
 
 
 class AstMismatchError(AssertionError):
@@ -57,7 +41,7 @@ class AstMismatchError(AssertionError):
                 for i, (name, typ) in enumerate(self.field_stack))
         return f"==> Path to node: <tree_root>\n{ '\n'.join(path_parts) }" \
                 if len(self.field_stack) != 0 else ""
-    
+
     def _build_notes(self) -> Iterable[str]:
         for note in self.notes or []:
             yield f"==> Note: {note}"
@@ -710,7 +694,7 @@ class TestCParser_fundamentals(TestCParser_base):
             )]))
         )
         assert_func_decl(
-            "void my_fun(int * cgr_nullable arg1);", 
+            "void my_fun(int * cgr_nullable arg1);",
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
                 type=_dummy(PtrDecl)(quals=["cgr_nullable"]),
             )]))
@@ -746,24 +730,24 @@ class TestCParser_fundamentals(TestCParser_base):
         )
 
         assert_func_decl(
-            ("void my_fun(int cgr_in * arg1);"), 
+            ("void my_fun(int cgr_in * arg1);"),
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
                 type=_dummy(PtrDecl)(intent=PtrIntent.IN),
             )]))
         )
-        assert_func_decl( ("void my_fun(int cgr_out * cgr_nullable arg1);"), 
+        assert_func_decl( ("void my_fun(int cgr_out * cgr_nullable arg1);"),
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Decl)(
                 type=_dummy(PtrDecl)(intent=PtrIntent.OUT, nullness=PtrNullness.NULLABLE),
             )]))
         )
         assert_func_decl(
-            ("void my_fun(int cgr_inout * cgr_not_null const);"), 
+            ("void my_fun(int cgr_inout * cgr_not_null const);"),
             _dummy(FuncDecl)(args=ParamList(params=[_dummy(Typename)(
                 type=_dummy(PtrDecl)(quals=Tqsk.CONST, nullness=PtrNullness.NOT_NULL, intent=PtrIntent.INOUT)
             )])),
         )
         assert_ast(
-            self.parse('void f(int cgr_in *p) { printf("%d", *p); }').ext[0].decl, 
+            self.parse('void f(int cgr_in *p) { printf("%d", *p); }').ext[0].decl,
             _dummy(Decl)(type=_dummy(FuncDecl)(args=ParamList(params=[
                 _dummy(Decl)(type=_dummy(PtrDecl)(intent=PtrIntent.IN))
             ]))),
@@ -983,7 +967,7 @@ class TestCParser_fundamentals(TestCParser_base):
         body = e.ext[0].body.block_items
 
         self.assertIsInstance(body[1], Compound)
-        self.assertEqual(body[1].block_items, None)
+        self.assertEqual(body[1].block_items, [])
 
         self.assertIsInstance(body[2], Compound)
         self.assertEqual(len(body[2].block_items), 1)
@@ -2718,12 +2702,12 @@ def main() -> None:
 # import atexit
 # from cgrparser.ast_base import _types
 # from pprint import pprint
-# 
+#
 # def print_types():
 #     for field_name, types in _types.items():
 #         for type_ in types:
 #             print(field_name, type_)
-# 
+#
 # atexit.register(print_types)
 
 
