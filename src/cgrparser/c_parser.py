@@ -861,7 +861,7 @@ class CParser(PLYParser):
 
     def p_declaration_specifiers_1(self, p):
         """ declaration_specifiers  : declaration_specifiers type_qualifier """
-        p[1].qualifier |= p[2]
+        p[1].qualifiers |= p[2]
         p[0] = p[1]
 
     def p_declaration_specifiers_2(self, p):

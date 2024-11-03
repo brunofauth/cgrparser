@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
 
 _g_repr_level: int = 0
 REPR_INDENT: str = '    '
+G_REPR_IGNORE_ELLIPSIS: bool = False
 
 
 @functools.cache
@@ -118,8 +119,7 @@ class Node(object):
 
 
     def __repr__(self):
-        """ Generates a python representation of the current node
-        """
+        """ Generates a python representation of the current node """
         global _g_repr_level
 
         slots = self.__slots__[:-2]
@@ -135,8 +135,13 @@ class Node(object):
             write(self.__class__.__name__, '(')
 
             _g_repr_level += 1
-            for name in slots:
-                write(REPR_INDENT * _g_repr_level, name, '=', _repr(getattr(self, name)), ',')
+            if G_REPR_IGNORE_ELLIPSIS:
+                for name in slots:
+                    if (value := getattr(self, name)) is not ...:
+                        write(REPR_INDENT * _g_repr_level, name, '=', _repr(value), ',')
+            else:
+                for name in slots:
+                    write(REPR_INDENT * _g_repr_level, name, '=', _repr(getattr(self, name)), ',')
             _g_repr_level -= 1
 
             write(REPR_INDENT * _g_repr_level, ')', end='')

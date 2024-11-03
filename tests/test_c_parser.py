@@ -63,9 +63,6 @@ class AstMismatchError(AssertionError):
             f"{attr_name!r} a != {attr_name!r} b:\n    a: {val1!r}\n    b: {val2!r}",
         ])
 
-    # @classmethod
-    # def from_asymetry(cls, field_stack: list[str], child_name) -> Self:
-    #     pass
 
 class MissingChild:
     def __repr__(self) -> str:
