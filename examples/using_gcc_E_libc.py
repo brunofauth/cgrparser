@@ -10,21 +10,18 @@
 #-------------------------------------------------------------------------------
 import sys
 
-# This is not required if you've installed cgrparser into
-# your site-packages/ with setup.py
-#
-sys.path.extend(['.', '..'])
-
-from cgrparser import parse_file
+from cgrparser.api import parse_file
 
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
-        filename  = sys.argv[1]
+        filename = sys.argv[1]
     else:
         filename = 'examples/c_files/year.c'
 
-    ast = parse_file(filename, use_cpp=True,
-            cpp_path='gcc',
-            cpp_args=['-E', r'-Iutils/fake_libc_include'])
+    ast = parse_file(filename, preprocessor_cmd=['cpp', '-E', r'-Iutils/fake_libc_include'])
     ast.show()
+
+
+if __name__ == "__main__":
+    main()

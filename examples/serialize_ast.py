@@ -10,7 +10,6 @@
 import pickle
 import sys
 
-sys.path.extend(['.', '..'])
 from cgrparser import c_parser
 
 text = r"""
@@ -20,7 +19,8 @@ void func(void)
 }
 """
 
-if __name__ == '__main__':
+
+def main():
     parser = c_parser.CParser()
     ast = parser.parse(text)
     dump_filename = 'ast.pickle'
@@ -32,3 +32,7 @@ if __name__ == '__main__':
     with open(dump_filename, 'rb') as f:
         ast = pickle.load(f)
         ast.show()
+
+
+if __name__ == '__main__':
+    main()

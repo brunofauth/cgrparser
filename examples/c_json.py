@@ -38,14 +38,9 @@ import json
 import sys
 import re
 
-# This is not required if you've installed cgrparser into
-# your site-packages/ with setup.py
-#
-sys.path.extend(['.', '..'])
-
-from cgrparser import parse_file, c_ast
+from cgrparser.api import parse_file
+from cgrparser import c_ast
 from cgrparser.plyparser import Coord
-
 
 RE_CHILD_ARRAY = re.compile(r'(.*)\[(.*)\]')
 RE_INTERNAL_ATTR = re.compile('__.*__')
@@ -61,6 +56,7 @@ def memodict(fn):
         def __missing__(self, key):
             ret = self[key] = fn(key)
             return ret
+
     return memodict().__getitem__
 
 
@@ -106,8 +102,8 @@ def to_dict(node):
             result[array_name] = result.get(array_name, [])
             if array_index != len(result[array_name]):
                 raise CJsonError('Internal ast error. Array {} out of order. '
-                    'Expected index {}, got {}'.format(
-                    array_name, len(result[array_name]), array_index))
+                                    'Expected index {}, got {}'.format(array_name, len(result[array_name]),
+                                                                        array_index))
             result[array_name].append(to_dict(child))
         else:
             result[child_name] = to_dict(child)
@@ -127,13 +123,13 @@ def to_json(node, **kwargs):
 
 def file_to_dict(filename):
     """ Load C file into dict representation of ast """
-    ast = parse_file(filename, use_cpp=True)
+    ast = parse_file(filename, preprocessor_cmd=['cpp'])
     return to_dict(ast)
 
 
 def file_to_json(filename, **kwargs):
     """ Load C file into json string representation of ast """
-    ast = parse_file(filename, use_cpp=True)
+    ast = parse_file(filename, preprocessor_cmd=['cpp'])
     return to_json(ast, **kwargs)
 
 
@@ -190,7 +186,7 @@ def from_json(ast_json):
 
 
 #------------------------------------------------------------------------------
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
         # Some test code...
         # Do trip from C -> ast -> dict -> ast -> json, then print.
@@ -199,3 +195,7 @@ if __name__ == "__main__":
         print(to_json(ast, sort_keys=True, indent=4))
     else:
         print("Please provide a filename as argument")
+
+
+if __name__ == "__main__":
+    main()

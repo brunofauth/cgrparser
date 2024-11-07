@@ -8,7 +8,6 @@
 #-----------------------------------------------------------------
 import sys
 
-sys.path.extend(['.', '..'])
 from cgrparser import c_parser
 
 text = r"""
@@ -18,7 +17,8 @@ void func(void)
 }
 """
 
-if __name__ == '__main__':
+
+def main():
     parser = c_parser.CParser()
     ast = parser.parse(text)
     print("Before:")
@@ -30,3 +30,7 @@ if __name__ == '__main__':
 
     print("After:")
     ast.show(offset=2)
+
+
+if __name__ == '__main__':
+    main()

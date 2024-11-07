@@ -8,10 +8,6 @@
 # -----------------------------------------------------------------
 import sys
 
-# This is not required if you've installed cgrparser into
-# your site-packages/ with setup.py
-sys.path.extend(['.', '..'])
-
 from cgrparser import c_ast, c_generator
 
 
@@ -51,10 +47,14 @@ def generate_c_code(my_ast):
     generator.visit(my_ast)
 
 
-if __name__ == '__main__':
+def main():
     main_function_ast = empty_main_function_ast()
     print("|----------------------------------------|")
     main_function_ast.show(offset=2)
     print("|----------------------------------------|")
     print("C code:")
     generate_c_code(main_function_ast)
+
+
+if __name__ == '__main__':
+    main()

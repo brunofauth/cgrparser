@@ -35,11 +35,6 @@
 import copy
 import sys
 
-# This is not required if you've installed cgrparser into
-# your site-packages/ with setup.py
-#
-sys.path.extend(['.', '..'])
-
 from cgrparser import c_parser, c_ast
 
 
@@ -178,7 +173,7 @@ def _find_typedef(name, file_ast):
             return node
 
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
         c_decl = sys.argv[1]
     else:
@@ -186,3 +181,7 @@ if __name__ == "__main__":
 
     print("Explaining the declaration: " + c_decl + "\n")
     print(explain_c_declaration(c_decl) + "\n")
+
+
+if __name__ == "__main__":
+    main()

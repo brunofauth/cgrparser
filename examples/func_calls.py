@@ -9,11 +9,9 @@
 #-----------------------------------------------------------------
 import sys
 
-# This is not required if you've installed cgrparser into
-# your site-packages/ with setup.py
-sys.path.extend(['.', '..'])
+from cgrparser.api import parse_file
+from cgrparser import c_ast
 
-from cgrparser import c_ast, parse_file
 
 # A visitor with some state information (the funcname it's looking for)
 class FuncCallVisitor(c_ast.NodeVisitor):
@@ -29,12 +27,12 @@ class FuncCallVisitor(c_ast.NodeVisitor):
 
 
 def show_func_calls(filename, funcname):
-    ast = parse_file(filename, use_cpp=True)
+    ast = parse_file(filename, preprocessor_cmd=['cpp'])
     v = FuncCallVisitor(funcname)
     v.visit(ast)
 
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 2:
         filename = sys.argv[1]
         func = sys.argv[2]
@@ -43,3 +41,7 @@ if __name__ == "__main__":
         func = 'foo'
 
     show_func_calls(filename, func)
+
+
+if __name__ == "__main__":
+    main()

@@ -9,8 +9,6 @@
 #-----------------------------------------------------------------
 import sys
 
-sys.path.extend(['.', '..'])
-
 from cgrparser import c_parser, c_ast, c_generator
 
 text = r"""
@@ -23,7 +21,6 @@ void bar() {
 
 
 class ParamAdder(c_ast.NodeVisitor):
-
     def visit_FuncDecl(self, node):
         ty = c_ast.TypeDecl(declname='_hidden', quals=[], align=[], type=c_ast.IdentifierType(['int']))
         newdecl = c_ast.Decl(
@@ -43,7 +40,7 @@ class ParamAdder(c_ast.NodeVisitor):
             node.args = c_ast.ParamList(params=[newdecl])
 
 
-if __name__ == '__main__':
+def main():
     parser = c_parser.CParser()
     ast = parser.parse(text)
     print("AST before change:")
@@ -58,3 +55,7 @@ if __name__ == '__main__':
     print("\nCode after change:")
     generator = c_generator.CGenerator(sys.stdout)
     generator.visit(ast)
+
+
+if __name__ == '__main__':
+    main()
