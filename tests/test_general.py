@@ -2,9 +2,9 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, '..')
-from cgrparser import parse_file, c_ast
-from tests.test_util import cpp_supported, cpp_path, cpp_args
+from cgrparser.api import parse_file
+import cgrparser.c_ast as c_ast
+from .test_util import cpp_supported, cpp_path, cpp_args
 
 
 # Test successful parsing
@@ -27,17 +27,17 @@ class TestParsing(unittest.TestCase):
     def test_with_cpp(self):
         memmgr_path = self._find_file('memmgr.c')
         c_files_path = os.path.dirname(memmgr_path)
-        ast = parse_file(memmgr_path,
-                            use_cpp=True,
-                            cpp_path=cpp_path(),
-                            cpp_args=cpp_args('-I%s' % c_files_path))
+        ast = parse_file(
+            memmgr_path,
+            preprocessor_cmd=[cpp_path(), *cpp_args('-I%s' % c_files_path)],
+        )
         self.assertIsInstance(ast, c_ast.FileAST)
 
         fake_libc = os.path.join(c_files_path, '..', '..', 'utils', 'fake_libc_include')
-        ast2 = parse_file(self._find_file('year.c'),
-                            use_cpp=True,
-                            cpp_path=cpp_path(),
-                            cpp_args=cpp_args('-I%s' % fake_libc))
+        ast2 = parse_file(
+            self._find_file('year.c'),
+            preprocessor_cmd=[cpp_path(), *cpp_args('-I%s' % fake_libc)],
+        )
 
         self.assertIsInstance(ast2, c_ast.FileAST)
 
@@ -48,25 +48,28 @@ class TestParsing(unittest.TestCase):
             return
 
         c_files_path = os.path.join('tests', 'c_files')
-        ast = parse_file(self._find_file('simplemain.c'),
-                            use_cpp=True,
-                            cpp_path=cpp_path(),
-                            cpp_args=cpp_args('-I%s' % c_files_path))
+        ast = parse_file(
+            self._find_file('simplemain.c'),
+            preprocessor_cmd=[cpp_path(), *cpp_args('-I%s' % c_files_path)],
+        )
         self.assertIsInstance(ast, c_ast.FileAST)
 
     @unittest.skipUnless(cpp_supported(), 'cpp only works on Unix')
     def test_no_real_content_after_cpp(self):
-        ast = parse_file(self._find_file('empty.h'), use_cpp=True, cpp_path=cpp_path(), cpp_args=cpp_args())
+        ast = parse_file(
+            self._find_file('empty.h'),
+            preprocessor_cmd=[cpp_path(), *cpp_args()],
+        )
         self.assertIsInstance(ast, c_ast.FileAST)
 
     @unittest.skipUnless(cpp_supported(), 'cpp only works on Unix')
     def test_c11_with_cpp(self):
         c_files_path = os.path.join('tests', 'c_files')
         fake_libc = os.path.join(c_files_path, '..', '..', 'utils', 'fake_libc_include')
-        ast = parse_file(self._find_file('c11.c'),
-                            use_cpp=True,
-                            cpp_path=cpp_path(),
-                            cpp_args=cpp_args('-I%s' % fake_libc))
+        ast = parse_file(
+            self._find_file('c11.c'),
+            preprocessor_cmd=[cpp_path(), *cpp_args('-I%s' % fake_libc)],
+        )
         self.assertIsInstance(ast, c_ast.FileAST)
 
 

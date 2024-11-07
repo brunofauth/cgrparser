@@ -5,11 +5,11 @@ import sys
 import unittest
 import textwrap
 
-# Run from the root dir
-sys.path.insert(0, '.')
-
-from cgrparser import c_parser, c_generator, c_ast, parse_file
-from tests.test_util import cpp_supported, cpp_path, cpp_args
+from cgrparser.api import parse_file
+import cgrparser.c_ast as c_ast
+import cgrparser.c_parser as c_parser
+import cgrparser.c_generator as c_generator
+from .test_util import cpp_supported, cpp_path, cpp_args
 
 _c_parser = c_parser.CParser(lex_optimize=False, yacc_debug=True, yacc_optimize=False, yacctab='yacctab')
 
@@ -507,7 +507,7 @@ class TestCasttoC(unittest.TestCase):
         test_fun = c_ast.FuncCall(c_ast.ID('test_fun'), c_ast.ExprList([]))
         memmgr_path = self._find_file('memmgr.h')
 
-        ast2 = parse_file(memmgr_path, use_cpp=True, cpp_path=cpp_path(), cpp_args=cpp_args())
+        ast2 = parse_file(memmgr_path, preprocessor_cmd=[cpp_path(), *cpp_args()])
         void_ptr_type = ast2.ext[-3].type.type
         void_type = void_ptr_type.type
         self.assertEqual(generator.visit(c_ast.Cast(void_ptr_type, test_fun)), '(void *) test_fun()')

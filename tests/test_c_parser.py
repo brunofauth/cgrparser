@@ -9,8 +9,6 @@ import io
 import unittest
 import typing
 
-sys.path[0:0] = ['.', '..']
-
 from cgrparser import c_parser
 from cgrparser.c_ast import *
 from cgrparser.c_parser import ParseError

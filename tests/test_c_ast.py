@@ -3,7 +3,6 @@ import textwrap
 import unittest
 import weakref
 
-sys.path.insert(0, '..')
 import cgrparser.c_ast as c_ast
 import cgrparser.plyparser as plyparser
 
