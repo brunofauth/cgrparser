@@ -150,7 +150,7 @@ class Node(object):
 
     def show(
         self,
-        buf: IO[str] = sys.stdout,
+        buf: IO[str] | None = None,
         offset: int = 0,
         attrnames: bool = False,
         nodenames: bool = False,
@@ -178,6 +178,9 @@ class Node(object):
                 Do you want the coordinates of each Node to be
                 displayed.
         """
+        if buf is None:
+            buf = sys.stdout
+
         lead = ' ' * offset
         if nodenames and _my_node_name is not None:
             buf.write(lead + self.__class__.__name__ + ' <' + _my_node_name + '>: ')
